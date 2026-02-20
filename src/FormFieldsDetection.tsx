@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import * as ort from "onnxruntime-web";
+//import * as ort from "onnxruntime-web";
 import * as pdfjsLib from "pdfjs-dist";
 import { detectFormFields } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
@@ -14,7 +14,7 @@ import { StatusMessage, type Status } from "./components/StatusMessage";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
+//ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
 
 const MODEL_URLS: Record<ModelType, string> = {
   "FFDNet-S": "https://us-beautiful-space.nyc3.cdn.digitaloceanspaces.com/commonforms/FFDNet-S.onnx",

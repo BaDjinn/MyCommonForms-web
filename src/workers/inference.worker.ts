@@ -1,4 +1,5 @@
-import * as ort from "onnxruntime-web";
+//import * as ort from "onnxruntime-web";
+import * as ort from "onnxruntime-web/all";
 import { applyNonMaximumSuppression } from "../lib/utils";
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
@@ -48,6 +49,33 @@ const sortFieldsByReadingOrder = (fields: DetectedField[]): DetectedField[] => {
 
 let cachedSession: ort.InferenceSession | null = null;
 
+async function createSessionWithFallback(modelPath: string) {
+  const candidates: ort.InferenceSession.SessionOptions[] = [
+    // 1) WebNN su NPU
+    { executionProviders: [{ name: "webnn", deviceType: "npu", powerPreference: "low-power" }] },
+
+    // 2) WebNN su GPU
+    { executionProviders: [{ name: "webnn", deviceType: "gpu", powerPreference: "high-performance" }] },
+
+    // 3) WebGPU
+    { executionProviders: ["webgpu"] },
+
+    // 4) WASM (CPU)
+    { executionProviders: ["wasm"] },
+  ];
+
+  let lastErr: unknown;
+  for (const opt of candidates) {
+    try {
+      const session = await ort.InferenceSession.create(modelPath, opt);
+      return { session, selectedEP: opt.executionProviders };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
 const runInference = async (
   imageDataArray: Uint8ClampedArray,
   imageWidth: number,
@@ -57,9 +85,11 @@ const runInference = async (
   isFirstPage: boolean
 ): Promise<DetectedField[]> => {
   if (isFirstPage || !cachedSession) {
-    cachedSession = await ort.InferenceSession.create(modelPath, {
-      executionProviders: ["wasm"],
-    });
+    const { session, selectedEP } = await createSessionWithFallback(modelPath);
+    cachedSession = session;
+
+    // opzionale: log o postMessage per debug
+    self.postMessage({ type: "ep-selected", data: selectedEP });
   }
 
   const rgbData = new Float32Array(3 * imageWidth * imageHeight);
