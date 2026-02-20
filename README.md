@@ -1,3 +1,6 @@
+# PLEASE
+Refer to the original page from where I forked from. This is my PERSONAL spin on the original, and i don't do support.
+
 # CommonForms in Browser
 
 ## [Try it here](https://commonforms.simplepdf.com)
