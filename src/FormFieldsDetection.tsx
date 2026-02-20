@@ -41,7 +41,7 @@ export function FormFieldsDetection() {
   const [pdfFile, setPdfFile] = useState<PdfFileState | null>(null);
   const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration>({
     selectedModel: "FFDNet-S",
-    confidenceThreshold: 0.4,
+    confidenceThreshold: 0.25,
   });
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
