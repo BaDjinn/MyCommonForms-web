@@ -43,7 +43,7 @@ export function ModelSelection({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("modelSelection.confidenceThreshold")} {confidenceThreshold.toFixed(1)}
+            {t("modelSelection.confidenceThreshold")} {confidenceThreshold.toFixed(2)}
           </label>
           <div className="flex items-center h-10">
             <input
