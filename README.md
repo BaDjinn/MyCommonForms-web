@@ -1,5 +1,17 @@
 # PLEASE
+
 Refer to the original page from where I forked from. This is my PERSONAL spin on the original, and i don't do support.
+
+## Major differences
+
+- confidence thershold now with 2 decimals
+- ONNX runtime web now in the WebCNN version with fallback: NPU->GPU->WebGPU->WASM(CPU)
+- minor aestethical changes
+
+## To Do
+
+[] Add "Keep previous modules"
+[] Add a label which states the type of accelerator used
 
 # CommonForms in Browser
 
