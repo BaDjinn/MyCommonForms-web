@@ -50,7 +50,7 @@ export function ModelSelection({
               type="range"
               min="0.1"
               max="1"
-              step="0.1"
+              step="0.01"
               value={confidenceThreshold}
               onChange={(e) => onChangeConfidenceThreshold(Number(e.target.value))}
               className="w-full md:w-1/2 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
