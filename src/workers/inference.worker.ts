@@ -90,6 +90,7 @@ const runInference = async (
 
     // opzionale: log o postMessage per debug
     self.postMessage({ type: "ep-selected", data: selectedEP });
+    console.log(`Inference session created with execution provider: ${JSON.stringify(selectedEP)}`);
   }
 
   const rgbData = new Float32Array(3 * imageWidth * imageHeight);
