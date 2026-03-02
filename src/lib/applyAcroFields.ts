@@ -1,7 +1,7 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import type { DetectionResult } from "./formFieldDetection";
 
-const FONT_SIZE_MULTIPLIER = 1;
+const FONT_SIZE_MULTIPLIER = 0.6;
 const MULTILINE_HEIGHT_THRESHOLD = 2;
 
 interface ApplyAcroFieldsParameters {
