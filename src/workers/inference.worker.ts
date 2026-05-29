@@ -6,7 +6,8 @@ ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/di
 
 export type FieldType = "ChoiceButton" | "Signature" | "TextBox";
 export type TextLayout = "singleline" | "multiline";
-export type TextLayoutSource = "auto" | "manual";
+export type FieldKind = "text_single" | "text_multi" | "signature" | "checkbox";
+export type FieldKindSource = "auto" | "manual";
 
 export interface DetectedField {
   type: FieldType;
@@ -14,8 +15,11 @@ export interface DetectedField {
   confidence: number;
   fieldId?: string;
   fieldLabel?: string;
+  fieldName?: string;
+  fieldKind?: FieldKind;
+  fieldKindSource?: FieldKindSource;
+  enabled?: boolean;
   textLayout?: TextLayout;
-  textLayoutSource?: TextLayoutSource;
   estimatedLines?: number;
 }
 
@@ -28,7 +32,7 @@ interface InferenceWorkerInput {
   imageWidth: number;
   imageHeight: number;
   modelPath: string;
-  confidenceThreshold: number;
+  candidateThreshold: number;
   isFirstPage: boolean;
 }
 
@@ -81,7 +85,7 @@ const runInference = async (
   imageWidth: number,
   imageHeight: number,
   modelPath: string,
-  confidenceThreshold: number,
+  candidateThreshold: number,
   isFirstPage: boolean
 ): Promise<DetectedField[]> => {
   if (isFirstPage || !cachedSession) {
@@ -134,7 +138,7 @@ const runInference = async (
     const maxScore = Math.max(...scores);
     const classId = scores.indexOf(maxScore);
 
-    if (maxScore > confidenceThreshold) {
+    if (maxScore > candidateThreshold) {
       detections.push({
         box: [cx / TARGET_SIZE, cy / TARGET_SIZE, w / TARGET_SIZE, h / TARGET_SIZE],
         classId,
@@ -161,7 +165,7 @@ const runInference = async (
 };
 
 self.onmessage = async (event: MessageEvent<InferenceWorkerInput>) => {
-  const { imageDataArray, imageWidth, imageHeight, modelPath, confidenceThreshold, isFirstPage } = event.data;
+  const { imageDataArray, imageWidth, imageHeight, modelPath, candidateThreshold, isFirstPage } = event.data;
 
   try {
     const fields = await runInference(
@@ -169,7 +173,7 @@ self.onmessage = async (event: MessageEvent<InferenceWorkerInput>) => {
       imageWidth,
       imageHeight,
       modelPath,
-      confidenceThreshold,
+      candidateThreshold,
       isFirstPage
     );
 

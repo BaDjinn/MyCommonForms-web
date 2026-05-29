@@ -5,13 +5,13 @@ import * as pdfjsLib from "pdfjs-dist";
 import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
-import { drawDetections, type TextLayoutOverrides } from "./lib/drawDetections";
+import { drawDetections, sanitizeFieldName, type FieldOverrides } from "./lib/drawDetections";
 import { ModelSelection, type ModelType, type ModelOption } from "./components/ModelSelection";
 import { DetectionResults, type ProcessingResult } from "./components/DetectionResults";
 import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
 import { StatusMessage, type Status } from "./components/StatusMessage";
-import { type TextLayout } from "./workers/inference.worker";
+import { type FieldKind } from "./workers/inference.worker";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -27,6 +27,11 @@ const AVAILABLE_MODELS: ModelOption[] = [
   { value: "FFDNet-L", label: "FFDNet-L (more accurate)" },
 ];
 
+const CANDIDATE_CONFIDENCE_THRESHOLD = 0.05;
+const MIN_RECOMMENDED_THRESHOLD = 0.08;
+const MAX_RECOMMENDED_THRESHOLD = 0.35;
+const MIN_RECOMMENDED_GAP = 0.08;
+
 interface ModelConfiguration {
   selectedModel: ModelType;
   confidenceThreshold: number;
@@ -38,6 +43,77 @@ interface PdfFileState {
   hasAcrofields: boolean;
 }
 
+const getExecutionProviderBadgeClass = (executionProvider: string): string => {
+  if (executionProvider.includes("WebNN")) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-300";
+  }
+
+  if (executionProvider.includes("WebGPU")) {
+    return "bg-blue-100 text-blue-800 border-blue-300";
+  }
+
+  if (executionProvider.includes("WASM")) {
+    return "bg-amber-100 text-amber-800 border-amber-300";
+  }
+
+  return "bg-gray-100 text-gray-800 border-gray-300";
+};
+
+const roundThreshold = (value: number): number => {
+  return Math.round(value * 100) / 100;
+};
+
+const clampRecommendedThreshold = (value: number): number => {
+  return Math.min(MAX_RECOMMENDED_THRESHOLD, Math.max(MIN_RECOMMENDED_THRESHOLD, value));
+};
+
+const getAllConfidenceScores = (detectionResult: DetectionResult): number[] => {
+  if (!detectionResult.success) {
+    return [];
+  }
+
+  return detectionResult.data.pages.flatMap((page) => page.fields.map((field) => field.confidence));
+};
+
+const calculateRecommendedConfidenceThreshold = (detectionResult: DetectionResult): number | null => {
+  const confidenceScores = getAllConfidenceScores(detectionResult)
+    .filter((confidence) => Number.isFinite(confidence))
+    .sort((a, b) => b - a);
+
+  if (confidenceScores.length < 4) {
+    return null;
+  }
+
+  let bestGap = 0;
+  let bestThreshold: number | null = null;
+
+  for (let index = 0; index < confidenceScores.length - 1; index++) {
+    const upperConfidence = confidenceScores[index];
+    const lowerConfidence = confidenceScores[index + 1];
+    const gap = upperConfidence - lowerConfidence;
+    const midpoint = (upperConfidence + lowerConfidence) / 2;
+
+    if (midpoint < MIN_RECOMMENDED_THRESHOLD || midpoint > MAX_RECOMMENDED_THRESHOLD) {
+      continue;
+    }
+
+    if (gap > bestGap) {
+      bestGap = gap;
+      bestThreshold = midpoint;
+    }
+  }
+
+  if (bestThreshold !== null && bestGap >= MIN_RECOMMENDED_GAP) {
+    return roundThreshold(clampRecommendedThreshold(bestThreshold));
+  }
+
+  const sortedAscending = [...confidenceScores].sort((a, b) => a - b);
+  const lowerQuartileIndex = Math.floor(sortedAscending.length * 0.25);
+  const fallbackThreshold = sortedAscending[lowerQuartileIndex] ?? CANDIDATE_CONFIDENCE_THRESHOLD;
+
+  return roundThreshold(clampRecommendedThreshold(fallbackThreshold));
+};
+
 export function FormFieldsDetection() {
   const { t } = useTranslation();
   const [pdfFile, setPdfFile] = useState<PdfFileState | null>(null);
@@ -47,7 +123,9 @@ export function FormFieldsDetection() {
     textBoxFontSize: 9,
   });
   const [rawDetectionResult, setRawDetectionResult] = useState<DetectionResult | null>(null);
-  const [textLayoutOverrides, setTextLayoutOverrides] = useState<TextLayoutOverrides>({});
+  const [fieldOverrides, setFieldOverrides] = useState<FieldOverrides>({});
+  const [executionProvider, setExecutionProvider] = useState<string | null>(null);
+  const [recommendedConfidenceThreshold, setRecommendedConfidenceThreshold] = useState<number | null>(null);
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +158,8 @@ export function FormFieldsDetection() {
       detectionResult: DetectionResult,
       selectedPdfFile: PdfFileState,
       textBoxFontSize: number,
-      currentTextLayoutOverrides: TextLayoutOverrides
+      currentFieldOverrides: FieldOverrides,
+      confidenceThreshold: number
     ) => {
       if (!detectionResult.success) {
         return;
@@ -98,7 +177,8 @@ export function FormFieldsDetection() {
         detectionResult,
         stripExistingAcroFields: selectedPdfFile.hasAcrofields,
         textBoxFontSize,
-        textLayoutOverrides: currentTextLayoutOverrides,
+        fieldOverrides: currentFieldOverrides,
+        confidenceThreshold,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -127,7 +207,8 @@ export function FormFieldsDetection() {
 
       const detectionDataWithDrawings = drawDetections(detectionResult.data, {
         textBoxFontSize,
-        textLayoutOverrides: currentTextLayoutOverrides,
+        fieldOverrides: currentFieldOverrides,
+        confidenceThreshold,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -143,13 +224,13 @@ export function FormFieldsDetection() {
         processingTime: detectionResult.data.processingTime,
         modelInfo: detectionResult.data.modelInfo,
         pdfWithAcroFieldsBlobUrl,
-        confidenceThreshold: modelConfiguration.confidenceThreshold,
+        confidenceThreshold,
         textBoxFontSize,
       });
 
       setStatus({ type: "idle" });
     },
-    [modelConfiguration.confidenceThreshold, revokeCurrentPdfObjectUrl, t]
+    [revokeCurrentPdfObjectUrl, t]
   );
 
   useEffect(() => {
@@ -161,13 +242,15 @@ export function FormFieldsDetection() {
       rawDetectionResult,
       pdfFile,
       modelConfiguration.textBoxFontSize,
-      textLayoutOverrides
+      fieldOverrides,
+      modelConfiguration.confidenceThreshold
     );
   }, [
     pdfFile,
     rawDetectionResult,
     modelConfiguration.textBoxFontSize,
-    textLayoutOverrides,
+    modelConfiguration.confidenceThreshold,
+    fieldOverrides,
     regenerateResultFromDetection,
   ]);
 
@@ -181,7 +264,9 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
-    setTextLayoutOverrides({});
+    setFieldOverrides({});
+    setExecutionProvider(null);
+    setRecommendedConfidenceThreshold(null);
 
     const validationResult = await ensureValidPDF(file);
 
@@ -241,12 +326,16 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
-    setTextLayoutOverrides({});
+    setFieldOverrides({});
+    setExecutionProvider(null);
+    setRecommendedConfidenceThreshold(null);
 
     const detectionResult = await detectFormFields({
       pdfFile: pdfFile.file,
       modelPath: MODEL_URLS[modelConfiguration.selectedModel],
-      confidenceThreshold: modelConfiguration.confidenceThreshold,
+      candidateThreshold: CANDIDATE_CONFIDENCE_THRESHOLD,
+      activeConfidenceThreshold: modelConfiguration.confidenceThreshold,
+      onExecutionProviderSelected: setExecutionProvider,
       onUpdateDetectionStatus: (status) => {
         const translatedMessage = ((): string => {
           switch (status.type) {
@@ -278,22 +367,47 @@ export function FormFieldsDetection() {
       return;
     }
 
+    setRecommendedConfidenceThreshold(calculateRecommendedConfidenceThreshold(detectionResult));
     setRawDetectionResult(detectionResult);
   };
 
-  const handleSetTextLayout = useCallback((fieldId: string, textLayout: TextLayout) => {
-    setTextLayoutOverrides((prev) => ({
+  const handleSetFieldEnabled = useCallback((fieldId: string, enabled: boolean) => {
+    setFieldOverrides((prev) => ({
       ...prev,
-      [fieldId]: textLayout,
+      [fieldId]: {
+        ...prev[fieldId],
+        enabled,
+      },
     }));
   }, []);
 
-  const handleResetTextLayout = useCallback((fieldId: string) => {
-    setTextLayoutOverrides((prev) => {
-      const next = { ...prev };
-      delete next[fieldId];
-      return next;
-    });
+  const handleSetFieldKind = useCallback((fieldId: string, fieldKind: FieldKind) => {
+    setFieldOverrides((prev) => ({
+      ...prev,
+      [fieldId]: {
+        ...prev[fieldId],
+        fieldKind,
+      },
+    }));
+  }, []);
+
+  const handleSetFieldName = useCallback((fieldId: string, rawFieldName: string) => {
+    const fieldName = sanitizeFieldName(rawFieldName);
+
+    setFieldOverrides((prev) => ({
+      ...prev,
+      [fieldId]: {
+        ...prev[fieldId],
+        fieldName: fieldName || undefined,
+      },
+    }));
+  }, []);
+
+  const handleUseRecommendedConfidenceThreshold = useCallback((confidenceThreshold: number) => {
+    setModelConfiguration((prev) => ({
+      ...prev,
+      confidenceThreshold,
+    }));
   }, []);
 
   return (
@@ -307,7 +421,9 @@ export function FormFieldsDetection() {
             onSelectModel={(model) => {
               clearGeneratedResult();
               setRawDetectionResult(null);
-              setTextLayoutOverrides({});
+              setFieldOverrides({});
+              setExecutionProvider(null);
+              setRecommendedConfidenceThreshold(null);
               setModelConfiguration((prev) => ({
                 ...prev,
                 selectedModel: model,
@@ -315,10 +431,9 @@ export function FormFieldsDetection() {
             }}
             availableModels={AVAILABLE_MODELS}
             confidenceThreshold={modelConfiguration.confidenceThreshold}
+            recommendedConfidenceThreshold={recommendedConfidenceThreshold}
+            onUseRecommendedConfidenceThreshold={handleUseRecommendedConfidenceThreshold}
             onChangeConfidenceThreshold={(threshold) => {
-              clearGeneratedResult();
-              setRawDetectionResult(null);
-              setTextLayoutOverrides({});
               setModelConfiguration((prev) => ({
                 ...prev,
                 confidenceThreshold: threshold,
@@ -332,6 +447,18 @@ export function FormFieldsDetection() {
               }))
             }
           />
+
+          {executionProvider && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium ${getExecutionProviderBadgeClass(
+                  executionProvider
+                )}`}
+              >
+                Backend: {executionProvider}
+              </span>
+            </div>
+          )}
 
           <ProcessingSteps
             pdfFile={pdfFile?.file ?? null}
@@ -347,8 +474,9 @@ export function FormFieldsDetection() {
 
           <DetectionResults
             result={result}
-            onSetTextLayout={handleSetTextLayout}
-            onResetTextLayout={handleResetTextLayout}
+            onSetFieldEnabled={handleSetFieldEnabled}
+            onSetFieldKind={handleSetFieldKind}
+            onSetFieldName={handleSetFieldName}
           />
         </div>
       </div>
