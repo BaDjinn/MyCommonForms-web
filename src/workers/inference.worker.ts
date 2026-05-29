@@ -6,7 +6,8 @@ ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/di
 
 export type FieldType = "ChoiceButton" | "Signature" | "TextBox";
 export type TextLayout = "singleline" | "multiline";
-export type TextLayoutSource = "auto" | "manual";
+export type FieldKind = "text_single" | "text_multi" | "signature" | "checkbox";
+export type FieldKindSource = "auto" | "manual";
 
 export interface DetectedField {
   type: FieldType;
@@ -14,8 +15,11 @@ export interface DetectedField {
   confidence: number;
   fieldId?: string;
   fieldLabel?: string;
+  fieldName?: string;
+  fieldKind?: FieldKind;
+  fieldKindSource?: FieldKindSource;
+  enabled?: boolean;
   textLayout?: TextLayout;
-  textLayoutSource?: TextLayoutSource;
   estimatedLines?: number;
 }
 

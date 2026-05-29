@@ -1,13 +1,13 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import type { DetectionResult } from "./formFieldDetection";
-import { getEstimatedLineCapacity, getFieldId, MULTILINE_MIN_LINES, type TextLayoutOverrides } from "./drawDetections";
+import { addFieldMetadata, makeUniqueFieldName, type FieldOverrides, type PdfMetadata } from "./drawDetections";
 
 interface ApplyAcroFieldsParameters {
   pdfFile: File;
   detectionResult: DetectionResult;
   stripExistingAcroFields: boolean;
   textBoxFontSize: number;
-  textLayoutOverrides: TextLayoutOverrides;
+  fieldOverrides: FieldOverrides;
 }
 
 type ApplyAcroFieldsErrorCode =
@@ -24,12 +24,42 @@ export type ApplyAcroFieldsResult =
       error: { code: ApplyAcroFieldsErrorCode; message: string };
     };
 
-const generateFieldName = (type: string, index: number): string => {
-  return `${type.toLowerCase()}_${index}`;
+const removeWidgetAppearance = (widgets: any[]): void => {
+  widgets.forEach((widget) => {
+    const widgetDict = widget.dict;
+    const mkDict = widgetDict.context.obj({});
+    widgetDict.set(widgetDict.context.obj("MK"), mkDict);
+  });
+};
+
+const getPdfCoordinates = (
+  bbox: [number, number, number, number],
+  pdfMetadata: PdfMetadata,
+  pageHeight: number
+): { x: number; y: number; width: number; height: number } => {
+  const [x, y, w, h] = bbox;
+  const { originalWidth, originalHeight, canvasSize, offsetX, offsetY } = pdfMetadata;
+
+  const canvasX = x * canvasSize;
+  const canvasY = y * canvasSize;
+  const canvasW = w * canvasSize;
+  const canvasH = h * canvasSize;
+
+  const pdfX = ((canvasX - offsetX) / (canvasSize - 2 * offsetX)) * originalWidth;
+  const pdfY = ((canvasY - offsetY) / (canvasSize - 2 * offsetY)) * originalHeight;
+  const pdfW = (canvasW / (canvasSize - 2 * offsetX)) * originalWidth;
+  const pdfH = (canvasH / (canvasSize - 2 * offsetY)) * originalHeight;
+
+  return {
+    x: pdfX,
+    y: pageHeight - (pdfY + pdfH),
+    width: pdfW,
+    height: pdfH,
+  };
 };
 
 export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Promise<ApplyAcroFieldsResult> => {
-  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize, textLayoutOverrides } = parameters;
+  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize, fieldOverrides } = parameters;
 
   if (!detectionResult.success) {
     return {
@@ -62,116 +92,92 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
 
     const form = pdfDoc.getForm();
     const pages = pdfDoc.getPages();
-    const fieldTypeCounters: Record<string, number> = {};
+    const usedFieldNames = new Set<string>();
 
     for (let pageIndex = 0; pageIndex < detectionResult.data.pages.length; pageIndex++) {
       const pageData = detectionResult.data.pages[pageIndex];
       const pdfPage = pages[pageIndex];
       const { height: pageHeight } = pdfPage.getSize();
 
-      const { fields, pdfMetadata } = pageData;
+      const fieldsWithMetadata = addFieldMetadata(
+        pageData.fields,
+        pageIndex,
+        pageData.pdfMetadata,
+        textBoxFontSize,
+        fieldOverrides
+      );
 
-      if (fields.length === 0) {
-        continue;
-      }
-
-      for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
-        const field = fields[fieldIndex];
-        const fieldType = field.type;
-        if (!fieldTypeCounters[fieldType]) {
-          fieldTypeCounters[fieldType] = 0;
+      for (const field of fieldsWithMetadata) {
+        if (field.enabled === false || !field.fieldKind || !field.fieldName) {
+          continue;
         }
-        const fieldTypeIndex = fieldTypeCounters[fieldType]++;
-        const fieldName = generateFieldName(fieldType, fieldTypeIndex);
-        const fieldId = getFieldId(pageIndex, fieldIndex);
 
-        const [x, y, w, h] = field.bbox;
-
-        const { originalWidth, originalHeight, canvasSize, offsetX, offsetY } = pdfMetadata;
-
-        const canvasX = x * canvasSize;
-        const canvasY = y * canvasSize;
-        const canvasW = w * canvasSize;
-        const canvasH = h * canvasSize;
-
-        const pdfX = ((canvasX - offsetX) / (canvasSize - 2 * offsetX)) * originalWidth;
-        const pdfY = ((canvasY - offsetY) / (canvasSize - 2 * offsetY)) * originalHeight;
-        const pdfW = (canvasW / (canvasSize - 2 * offsetX)) * originalWidth;
-        const pdfH = (canvasH / (canvasSize - 2 * offsetY)) * originalHeight;
-
-        const absoluteX = pdfX;
-        const absoluteY = pageHeight - (pdfY + pdfH);
-        const absoluteW = pdfW;
-        const absoluteH = pdfH;
+        const fieldName = makeUniqueFieldName(field.fieldName, usedFieldNames);
+        const { x, y, width, height } = getPdfCoordinates(field.bbox, pageData.pdfMetadata, pageHeight);
 
         try {
-          switch (fieldType) {
-            case "TextBox": {
-              const estimatedLines = getEstimatedLineCapacity(absoluteH, textBoxFontSize);
-              const autoTextLayout = estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline";
-              const textLayout = textLayoutOverrides[fieldId] ?? autoTextLayout;
+          switch (field.fieldKind) {
+            case "text_single": {
               const textField = form.createTextField(fieldName);
               textField.addToPage(pdfPage, {
-                x: absoluteX,
-                y: absoluteY,
-                width: absoluteW,
-                height: absoluteH,
+                x,
+                y,
+                width,
+                height,
                 borderWidth: 0,
                 textColor: rgb(0, 0, 0),
               });
               textField.setFontSize(textBoxFontSize);
-              if (textLayout === "multiline") {
-                textField.enableMultiline();
-              }
-              const acroField = textField.acroField;
-              const widgets = acroField.getWidgets();
-              widgets.forEach((widget) => {
-                const widgetDict = widget.dict;
-                const mkDict = widgetDict.context.obj({});
-                widgetDict.set(widgetDict.context.obj("MK"), mkDict);
-              });
+              removeWidgetAppearance(textField.acroField.getWidgets());
               break;
             }
-            case "ChoiceButton": {
+
+            case "text_multi": {
+              const textField = form.createTextField(fieldName);
+              textField.addToPage(pdfPage, {
+                x,
+                y,
+                width,
+                height,
+                borderWidth: 0,
+                textColor: rgb(0, 0, 0),
+              });
+              textField.setFontSize(textBoxFontSize);
+              textField.enableMultiline();
+              removeWidgetAppearance(textField.acroField.getWidgets());
+              break;
+            }
+
+            case "checkbox": {
               const checkBox = form.createCheckBox(fieldName);
               checkBox.addToPage(pdfPage, {
-                x: absoluteX,
-                y: absoluteY,
-                width: absoluteW,
-                height: absoluteH,
+                x,
+                y,
+                width,
+                height,
                 borderWidth: 0,
               });
-              const acroField = checkBox.acroField;
-              const widgets = acroField.getWidgets();
-              widgets.forEach((widget) => {
-                const widgetDict = widget.dict;
-                const mkDict = widgetDict.context.obj({});
-                widgetDict.set(widgetDict.context.obj("MK"), mkDict);
-              });
+              removeWidgetAppearance(checkBox.acroField.getWidgets());
               break;
             }
-            case "Signature": {
+
+            case "signature": {
               const signatureField = form.createTextField(fieldName);
               signatureField.addToPage(pdfPage, {
-                x: absoluteX,
-                y: absoluteY,
-                width: absoluteW,
-                height: absoluteH,
+                x,
+                y,
+                width,
+                height,
                 borderWidth: 0,
                 textColor: rgb(0, 0, 0),
               });
               signatureField.setFontSize(textBoxFontSize);
-              const acroField = signatureField.acroField;
-              const widgets = acroField.getWidgets();
-              widgets.forEach((widget) => {
-                const widgetDict = widget.dict;
-                const mkDict = widgetDict.context.obj({});
-                widgetDict.set(widgetDict.context.obj("MK"), mkDict);
-              });
+              removeWidgetAppearance(signatureField.acroField.getWidgets());
               break;
             }
+
             default:
-              console.error(`Unsupported field type: ${fieldType}`);
+              console.error(`Unsupported field kind: ${field.fieldKind satisfies never}`);
               break;
           }
         } catch (e) {

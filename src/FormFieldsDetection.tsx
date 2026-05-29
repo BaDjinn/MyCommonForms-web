@@ -5,13 +5,13 @@ import * as pdfjsLib from "pdfjs-dist";
 import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
-import { drawDetections, type TextLayoutOverrides } from "./lib/drawDetections";
+import { drawDetections, sanitizeFieldName, type FieldOverrides } from "./lib/drawDetections";
 import { ModelSelection, type ModelType, type ModelOption } from "./components/ModelSelection";
 import { DetectionResults, type ProcessingResult } from "./components/DetectionResults";
 import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
 import { StatusMessage, type Status } from "./components/StatusMessage";
-import { type TextLayout } from "./workers/inference.worker";
+import { type FieldKind } from "./workers/inference.worker";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -38,6 +38,22 @@ interface PdfFileState {
   hasAcrofields: boolean;
 }
 
+const getExecutionProviderBadgeClass = (executionProvider: string): string => {
+  if (executionProvider.includes("WebNN")) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-300";
+  }
+
+  if (executionProvider.includes("WebGPU")) {
+    return "bg-blue-100 text-blue-800 border-blue-300";
+  }
+
+  if (executionProvider.includes("WASM")) {
+    return "bg-amber-100 text-amber-800 border-amber-300";
+  }
+
+  return "bg-gray-100 text-gray-800 border-gray-300";
+};
+
 export function FormFieldsDetection() {
   const { t } = useTranslation();
   const [pdfFile, setPdfFile] = useState<PdfFileState | null>(null);
@@ -47,7 +63,8 @@ export function FormFieldsDetection() {
     textBoxFontSize: 9,
   });
   const [rawDetectionResult, setRawDetectionResult] = useState<DetectionResult | null>(null);
-  const [textLayoutOverrides, setTextLayoutOverrides] = useState<TextLayoutOverrides>({});
+  const [fieldOverrides, setFieldOverrides] = useState<FieldOverrides>({});
+  const [executionProvider, setExecutionProvider] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +97,7 @@ export function FormFieldsDetection() {
       detectionResult: DetectionResult,
       selectedPdfFile: PdfFileState,
       textBoxFontSize: number,
-      currentTextLayoutOverrides: TextLayoutOverrides
+      currentFieldOverrides: FieldOverrides
     ) => {
       if (!detectionResult.success) {
         return;
@@ -98,7 +115,7 @@ export function FormFieldsDetection() {
         detectionResult,
         stripExistingAcroFields: selectedPdfFile.hasAcrofields,
         textBoxFontSize,
-        textLayoutOverrides: currentTextLayoutOverrides,
+        fieldOverrides: currentFieldOverrides,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -127,7 +144,7 @@ export function FormFieldsDetection() {
 
       const detectionDataWithDrawings = drawDetections(detectionResult.data, {
         textBoxFontSize,
-        textLayoutOverrides: currentTextLayoutOverrides,
+        fieldOverrides: currentFieldOverrides,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -157,19 +174,8 @@ export function FormFieldsDetection() {
       return;
     }
 
-    void regenerateResultFromDetection(
-      rawDetectionResult,
-      pdfFile,
-      modelConfiguration.textBoxFontSize,
-      textLayoutOverrides
-    );
-  }, [
-    pdfFile,
-    rawDetectionResult,
-    modelConfiguration.textBoxFontSize,
-    textLayoutOverrides,
-    regenerateResultFromDetection,
-  ]);
+    void regenerateResultFromDetection(rawDetectionResult, pdfFile, modelConfiguration.textBoxFontSize, fieldOverrides);
+  }, [pdfFile, rawDetectionResult, modelConfiguration.textBoxFontSize, fieldOverrides, regenerateResultFromDetection]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -181,7 +187,8 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
-    setTextLayoutOverrides({});
+    setFieldOverrides({});
+    setExecutionProvider(null);
 
     const validationResult = await ensureValidPDF(file);
 
@@ -241,12 +248,14 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
-    setTextLayoutOverrides({});
+    setFieldOverrides({});
+    setExecutionProvider(null);
 
     const detectionResult = await detectFormFields({
       pdfFile: pdfFile.file,
       modelPath: MODEL_URLS[modelConfiguration.selectedModel],
       confidenceThreshold: modelConfiguration.confidenceThreshold,
+      onExecutionProviderSelected: setExecutionProvider,
       onUpdateDetectionStatus: (status) => {
         const translatedMessage = ((): string => {
           switch (status.type) {
@@ -281,19 +290,36 @@ export function FormFieldsDetection() {
     setRawDetectionResult(detectionResult);
   };
 
-  const handleSetTextLayout = useCallback((fieldId: string, textLayout: TextLayout) => {
-    setTextLayoutOverrides((prev) => ({
+  const handleSetFieldEnabled = useCallback((fieldId: string, enabled: boolean) => {
+    setFieldOverrides((prev) => ({
       ...prev,
-      [fieldId]: textLayout,
+      [fieldId]: {
+        ...prev[fieldId],
+        enabled,
+      },
     }));
   }, []);
 
-  const handleResetTextLayout = useCallback((fieldId: string) => {
-    setTextLayoutOverrides((prev) => {
-      const next = { ...prev };
-      delete next[fieldId];
-      return next;
-    });
+  const handleSetFieldKind = useCallback((fieldId: string, fieldKind: FieldKind) => {
+    setFieldOverrides((prev) => ({
+      ...prev,
+      [fieldId]: {
+        ...prev[fieldId],
+        fieldKind,
+      },
+    }));
+  }, []);
+
+  const handleSetFieldName = useCallback((fieldId: string, rawFieldName: string) => {
+    const fieldName = sanitizeFieldName(rawFieldName);
+
+    setFieldOverrides((prev) => ({
+      ...prev,
+      [fieldId]: {
+        ...prev[fieldId],
+        fieldName: fieldName || undefined,
+      },
+    }));
   }, []);
 
   return (
@@ -307,7 +333,8 @@ export function FormFieldsDetection() {
             onSelectModel={(model) => {
               clearGeneratedResult();
               setRawDetectionResult(null);
-              setTextLayoutOverrides({});
+              setFieldOverrides({});
+              setExecutionProvider(null);
               setModelConfiguration((prev) => ({
                 ...prev,
                 selectedModel: model,
@@ -318,7 +345,8 @@ export function FormFieldsDetection() {
             onChangeConfidenceThreshold={(threshold) => {
               clearGeneratedResult();
               setRawDetectionResult(null);
-              setTextLayoutOverrides({});
+              setFieldOverrides({});
+              setExecutionProvider(null);
               setModelConfiguration((prev) => ({
                 ...prev,
                 confidenceThreshold: threshold,
@@ -332,6 +360,18 @@ export function FormFieldsDetection() {
               }))
             }
           />
+
+          {executionProvider && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              <span
+                className={`inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium ${getExecutionProviderBadgeClass(
+                  executionProvider
+                )}`}
+              >
+                Backend: {executionProvider}
+              </span>
+            </div>
+          )}
 
           <ProcessingSteps
             pdfFile={pdfFile?.file ?? null}
@@ -347,8 +387,9 @@ export function FormFieldsDetection() {
 
           <DetectionResults
             result={result}
-            onSetTextLayout={handleSetTextLayout}
-            onResetTextLayout={handleResetTextLayout}
+            onSetFieldEnabled={handleSetFieldEnabled}
+            onSetFieldKind={handleSetFieldKind}
+            onSetFieldName={handleSetFieldName}
           />
         </div>
       </div>

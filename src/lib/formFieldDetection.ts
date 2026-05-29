@@ -6,6 +6,45 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 const TARGET_SIZE = 1216;
 
+const formatExecutionProvider = (executionProviders: unknown): string => {
+  const firstExecutionProvider = Array.isArray(executionProviders) ? executionProviders[0] : executionProviders;
+
+  if (typeof firstExecutionProvider === "string") {
+    switch (firstExecutionProvider.toLowerCase()) {
+      case "webgpu":
+        return "WebGPU";
+      case "wasm":
+        return "WASM";
+      case "webnn":
+        return "WebNN";
+      default:
+        return firstExecutionProvider;
+    }
+  }
+
+  if (typeof firstExecutionProvider === "object" && firstExecutionProvider !== null) {
+    const provider = firstExecutionProvider as { name?: string; deviceType?: string };
+    const providerName = provider.name?.toLowerCase();
+    const deviceType = provider.deviceType?.toUpperCase();
+
+    if (providerName === "webnn") {
+      return deviceType ? `WebNN ${deviceType}` : "WebNN";
+    }
+
+    if (providerName === "webgpu") {
+      return "WebGPU";
+    }
+
+    if (providerName === "wasm") {
+      return "WASM";
+    }
+
+    return provider.name ?? "Unknown";
+  }
+
+  return "Unknown";
+};
+
 interface PageDetectionData {
   fields: DetectedField[];
   imageData: ImageData;
@@ -34,6 +73,7 @@ export interface DetectionParameters {
   modelPath: string;
   confidenceThreshold: number;
   onUpdateDetectionStatus: (status: DetectionStatusUpdate) => void;
+  onExecutionProviderSelected?: (executionProvider: string) => void;
 }
 
 type ErrorCode =
@@ -101,7 +141,7 @@ const renderPdfPageToImageData = async (
 };
 
 export const detectFormFields = async (parameters: DetectionParameters): Promise<DetectionResult> => {
-  const { pdfFile, modelPath, confidenceThreshold, onUpdateDetectionStatus } = parameters;
+  const { pdfFile, modelPath, confidenceThreshold, onUpdateDetectionStatus, onExecutionProviderSelected } = parameters;
 
   try {
     const startTime = performance.now();
@@ -140,6 +180,11 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
       }>((resolve, reject) => {
         const messageHandler = (event: MessageEvent) => {
           const { type, data } = event.data;
+
+          if (type === "ep-selected") {
+            onExecutionProviderSelected?.(formatExecutionProvider(data));
+            return;
+          }
 
           if (type === "result") {
             worker.removeEventListener("message", messageHandler);

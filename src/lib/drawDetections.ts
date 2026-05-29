@@ -1,31 +1,49 @@
-import { type DetectedField, type FieldType, type TextLayout } from "../workers/inference.worker";
+import { type DetectedField, type FieldKind, type TextLayout } from "../workers/inference.worker";
 
 export interface FieldColors {
   background: string;
   label: string;
 }
 
-export type TextLayoutOverrides = Record<string, TextLayout>;
+export interface FieldOverride {
+  enabled?: boolean;
+  fieldName?: string;
+  fieldKind?: FieldKind;
+}
 
-type DrawableFieldKind = FieldType | "TextBoxMultiline";
+export type FieldOverrides = Record<string, FieldOverride>;
 
-export const FIELD_COLORS: Record<DrawableFieldKind, FieldColors> = {
-  ChoiceButton: {
-    background: "#a4dcf891",
-    label: "#10B981",
-  },
-  Signature: {
-    background: "#a4dcf891",
-    label: "#F59E0B",
-  },
-  TextBox: {
-    background: "#a4dcf891",
+export const FIELD_COLORS: Record<FieldKind, FieldColors> = {
+  text_single: {
+    background: "#bfdbfe91",
     label: "#3B82F6",
   },
-  TextBoxMultiline: {
+  text_multi: {
     background: "#86efac91",
     label: "#16A34A",
   },
+  signature: {
+    background: "#fde68a91",
+    label: "#F59E0B",
+  },
+  checkbox: {
+    background: "#ddd6fe91",
+    label: "#8B5CF6",
+  },
+};
+
+const FIELD_KIND_LABELS: Record<FieldKind, string> = {
+  text_single: "Text single",
+  text_multi: "Text multi",
+  signature: "Signature",
+  checkbox: "Checkbox",
+};
+
+const FIELD_NAME_PREFIXES: Record<FieldKind, string> = {
+  text_single: "text",
+  text_multi: "text_multi",
+  signature: "signature",
+  checkbox: "checkbox",
 };
 
 const LABEL_BAR_HEIGHT = 12.5;
@@ -37,7 +55,7 @@ const TEXTBOX_VERTICAL_PADDING_RATIO = 0.5;
 const TEXTBOX_LINE_GAP_RATIO = 0.5;
 export const MULTILINE_MIN_LINES = 2;
 
-interface PdfMetadata {
+export interface PdfMetadata {
   originalWidth: number;
   originalHeight: number;
   canvasSize: number;
@@ -47,11 +65,48 @@ interface PdfMetadata {
 
 interface DrawDetectionsOptions {
   textBoxFontSize: number;
-  textLayoutOverrides: TextLayoutOverrides;
+  fieldOverrides: FieldOverrides;
 }
+
+export const FIELD_KIND_OPTIONS: Array<{ value: FieldKind; label: string }> = [
+  { value: "text_single", label: FIELD_KIND_LABELS.text_single },
+  { value: "text_multi", label: FIELD_KIND_LABELS.text_multi },
+  { value: "signature", label: FIELD_KIND_LABELS.signature },
+  { value: "checkbox", label: FIELD_KIND_LABELS.checkbox },
+];
+
+export const getFieldKindLabel = (fieldKind: FieldKind): string => {
+  return FIELD_KIND_LABELS[fieldKind];
+};
 
 export const getFieldId = (pageIndex: number, fieldIndex: number): string => {
   return `page-${pageIndex + 1}-field-${fieldIndex + 1}`;
+};
+
+export const sanitizeFieldName = (rawName: string): string => {
+  return rawName
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+};
+
+export const makeUniqueFieldName = (baseName: string, usedFieldNames: Set<string>): string => {
+  const sanitizedBaseName = sanitizeFieldName(baseName) || "field";
+  let candidate = sanitizedBaseName;
+  let suffix = 2;
+
+  while (usedFieldNames.has(candidate)) {
+    candidate = `${sanitizedBaseName}_${suffix}`;
+    suffix += 1;
+  }
+
+  usedFieldNames.add(candidate);
+  return candidate;
 };
 
 export const getEstimatedLineCapacity = (fieldHeight: number, fontSize: number): number => {
@@ -66,7 +121,7 @@ export const getEstimatedLineCapacity = (fieldHeight: number, fontSize: number):
   return Math.max(1, Math.floor((usableHeight + lineGap) / (fontSize + lineGap)));
 };
 
-const getPdfFieldHeight = (field: DetectedField, pdfMetadata: PdfMetadata): number => {
+export const getPdfFieldHeight = (field: DetectedField, pdfMetadata: PdfMetadata): number => {
   const [, , , normalizedHeight] = field.bbox;
   const { originalHeight, canvasSize, offsetY } = pdfMetadata;
   const canvasHeight = normalizedHeight * canvasSize;
@@ -74,64 +129,88 @@ const getPdfFieldHeight = (field: DetectedField, pdfMetadata: PdfMetadata): numb
   return (canvasHeight / (canvasSize - 2 * offsetY)) * originalHeight;
 };
 
-export const addTextLayoutMetadata = (
+export const getAutoFieldKind = (
+  field: DetectedField,
+  pdfMetadata: PdfMetadata,
+  textBoxFontSize: number
+): { fieldKind: FieldKind; estimatedLines?: number; textLayout?: TextLayout } => {
+  if (field.type === "ChoiceButton") {
+    return { fieldKind: "checkbox" };
+  }
+
+  if (field.type === "Signature") {
+    return { fieldKind: "signature" };
+  }
+
+  const pdfFieldHeight = getPdfFieldHeight(field, pdfMetadata);
+  const estimatedLines = getEstimatedLineCapacity(pdfFieldHeight, textBoxFontSize);
+  const textLayout: TextLayout = estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline";
+
+  return {
+    fieldKind: textLayout === "multiline" ? "text_multi" : "text_single",
+    estimatedLines,
+    textLayout,
+  };
+};
+
+export const getDefaultFieldName = (fieldKind: FieldKind, pageIndex: number, fieldIndex: number): string => {
+  return `${FIELD_NAME_PREFIXES[fieldKind]}_${pageIndex + 1}_${fieldIndex + 1}`;
+};
+
+export const getEffectiveFieldName = (
+  fieldId: string,
+  fieldKind: FieldKind,
+  pageIndex: number,
+  fieldIndex: number,
+  fieldOverrides: FieldOverrides
+): string => {
+  const overrideName = fieldOverrides[fieldId]?.fieldName;
+  const sanitizedOverrideName = overrideName ? sanitizeFieldName(overrideName) : "";
+
+  return sanitizedOverrideName || getDefaultFieldName(fieldKind, pageIndex, fieldIndex);
+};
+
+export const getFieldColors = (fieldKind: FieldKind): FieldColors => {
+  return FIELD_COLORS[fieldKind];
+};
+
+export const addFieldMetadata = (
   fields: DetectedField[],
   pageIndex: number,
   pdfMetadata: PdfMetadata,
   textBoxFontSize: number,
-  textLayoutOverrides: TextLayoutOverrides
+  fieldOverrides: FieldOverrides
 ): DetectedField[] => {
-  let textBoxCounter = 0;
-
   return fields.map((field, fieldIndex) => {
     const fieldId = getFieldId(pageIndex, fieldIndex);
-
-    if (field.type !== "TextBox") {
-      return {
-        ...field,
-        fieldId,
-      };
-    }
-
-    textBoxCounter += 1;
-
-    const pdfFieldHeight = getPdfFieldHeight(field, pdfMetadata);
-    const estimatedLines = getEstimatedLineCapacity(pdfFieldHeight, textBoxFontSize);
-    const autoTextLayout: TextLayout = estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline";
-    const manualTextLayout = textLayoutOverrides[fieldId];
-    const textLayout = manualTextLayout ?? autoTextLayout;
+    const autoFieldInfo = getAutoFieldKind(field, pdfMetadata, textBoxFontSize);
+    const fieldOverride = fieldOverrides[fieldId];
+    const fieldKind = fieldOverride?.fieldKind ?? autoFieldInfo.fieldKind;
+    const enabled = fieldOverride?.enabled ?? true;
+    const fieldName = getEffectiveFieldName(fieldId, fieldKind, pageIndex, fieldIndex, fieldOverrides);
+    const textLayout: TextLayout | undefined =
+      fieldKind === "text_multi" ? "multiline" : fieldKind === "text_single" ? "singleline" : autoFieldInfo.textLayout;
 
     return {
       ...field,
       fieldId,
-      fieldLabel: `T${textBoxCounter}`,
-      estimatedLines,
+      fieldLabel: `F${fieldIndex + 1}`,
+      fieldName,
+      fieldKind,
+      fieldKindSource: fieldOverride?.fieldKind ? "manual" : "auto",
+      enabled,
+      estimatedLines: autoFieldInfo.estimatedLines,
       textLayout,
-      textLayoutSource: manualTextLayout ? "manual" : "auto",
     };
   });
 };
 
-const getFieldColors = (field: DetectedField): FieldColors => {
-  if (field.type === "TextBox" && field.textLayout === "multiline") {
-    return FIELD_COLORS.TextBoxMultiline;
-  }
-
-  return FIELD_COLORS[field.type];
-};
-
 const getFieldLabel = (field: DetectedField): string => {
-  const manualSuffix = field.textLayoutSource === "manual" ? " manual" : "";
+  const fieldKind = field.fieldKind ?? "text_single";
+  const manualSuffix = field.fieldKindSource === "manual" ? " manual" : "";
+  const fieldName = field.fieldName ? ` · ${field.fieldName}` : "";
 
-  if (field.type === "TextBox" && field.textLayout === "multiline") {
-    return `${field.fieldLabel ?? "TextBox"} multiline (${field.estimatedLines ?? 2}L)${manualSuffix}`;
-  }
-
-  if (field.type === "TextBox") {
-    return `${field.fieldLabel ?? "TextBox"} singleline${manualSuffix}`;
-  }
-
-  return field.type;
+  return `${field.fieldLabel ?? "Field"} ${getFieldKindLabel(fieldKind)}${manualSuffix}${fieldName}`;
 };
 
 const drawWidgets = (canvas: HTMLCanvasElement, fields: DetectedField[]): void => {
@@ -141,13 +220,17 @@ const drawWidgets = (canvas: HTMLCanvasElement, fields: DetectedField[]): void =
   }
 
   fields.forEach((field) => {
+    if (field.enabled === false || !field.fieldKind) {
+      return;
+    }
+
     const [normalizedX, normalizedY, normalizedWidth, normalizedHeight] = field.bbox;
     const absoluteX = normalizedX * canvas.width;
     const absoluteY = normalizedY * canvas.height;
     const absoluteWidth = normalizedWidth * canvas.width;
     const absoluteHeight = normalizedHeight * canvas.height;
 
-    const fieldColors = getFieldColors(field);
+    const fieldColors = getFieldColors(field.fieldKind);
 
     context.fillStyle = fieldColors.background;
     context.fillRect(absoluteX, absoluteY, absoluteWidth, absoluteHeight);
@@ -195,12 +278,12 @@ export const drawDetections = (
   options: DrawDetectionsOptions
 ): DetectionDataOutput => {
   const pagesWithDrawings = detectionData.pages.map((page, pageIndex) => {
-    const fieldsWithLayout = addTextLayoutMetadata(
+    const fieldsWithMetadata = addFieldMetadata(
       page.fields,
       pageIndex,
       page.pdfMetadata,
       options.textBoxFontSize,
-      options.textLayoutOverrides
+      options.fieldOverrides
     );
 
     const canvas = document.createElement("canvas");
@@ -209,11 +292,11 @@ export const drawDetections = (
     const ctx = canvas.getContext("2d")!;
     ctx.putImageData(page.imageData, 0, 0);
 
-    drawWidgets(canvas, fieldsWithLayout);
+    drawWidgets(canvas, fieldsWithMetadata);
 
     return {
       ...page,
-      fields: fieldsWithLayout,
+      fields: fieldsWithMetadata,
       imageData: canvas.toDataURL(),
     };
   });

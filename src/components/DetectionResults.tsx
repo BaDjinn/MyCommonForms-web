@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { type DetectedField, type TextLayout } from "../workers/inference.worker";
-import { FIELD_COLORS } from "../lib/drawDetections";
+import { type DetectedField, type FieldKind } from "../workers/inference.worker";
+import { FIELD_KIND_OPTIONS, FIELD_COLORS, getFieldColors, getFieldKindLabel } from "../lib/drawDetections";
 
 interface PageResult {
   fields: DetectedField[];
@@ -19,15 +19,22 @@ interface ProcessingResult {
 
 interface DetectionResultsProps {
   result: ProcessingResult | null;
-  onSetTextLayout: (fieldId: string, textLayout: TextLayout) => void;
-  onResetTextLayout: (fieldId: string) => void;
+  onSetFieldEnabled: (fieldId: string, enabled: boolean) => void;
+  onSetFieldKind: (fieldId: string, fieldKind: FieldKind) => void;
+  onSetFieldName: (fieldId: string, fieldName: string) => void;
 }
 
-const getTextLayoutLabel = (textLayout: TextLayout | undefined): string => {
-  return textLayout === "multiline" ? "multiline" : "singleline";
+const getSafeFieldKind = (field: DetectedField): FieldKind => {
+  return field.fieldKind ?? "text_single";
 };
 
-export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }: DetectionResultsProps) {
+const blurOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+  if (event.key === "Enter") {
+    event.currentTarget.blur();
+  }
+};
+
+export function DetectionResults({ result, onSetFieldEnabled, onSetFieldKind, onSetFieldName }: DetectionResultsProps) {
   const { t } = useTranslation();
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
@@ -36,11 +43,15 @@ export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }:
   }
 
   const currentPage = result.pages[currentPageIndex] || result.pages[0];
-  const currentPageTextBoxes = currentPage.fields.filter((field) => field.type === "TextBox" && field.fieldId);
   const totalFields = result.pages.reduce((sum, page) => sum + page.fields.length, 0);
+  const activeFields = result.pages.reduce(
+    (sum, page) => sum + page.fields.filter((field) => field.enabled !== false).length,
+    0
+  );
+  const disabledFields = totalFields - activeFields;
   const totalMultilineTextBoxes = result.pages.reduce(
     (sum, page) =>
-      sum + page.fields.filter((field) => field.type === "TextBox" && field.textLayout === "multiline").length,
+      sum + page.fields.filter((field) => field.enabled !== false && field.fieldKind === "text_multi").length,
     0
   );
 
@@ -68,22 +79,12 @@ export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }:
         />
         <div className="mt-4 md:mt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex flex-wrap gap-3 md:gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.TextBox.label }}></div>
-              <span>TextBox singleline</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.TextBoxMultiline.label }}></div>
-              <span>TextBox multiline</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.ChoiceButton.label }}></div>
-              <span>ChoiceButton</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.Signature.label }}></div>
-              <span>Signature</span>
-            </div>
+            {FIELD_KIND_OPTIONS.map((option) => (
+              <div key={option.value} className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS[option.value].label }}></div>
+                <span>{option.label}</span>
+              </div>
+            ))}
           </div>
           {result.pages.length > 1 && (
             <div className="flex items-center gap-4">
@@ -120,7 +121,7 @@ export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }:
         </div>
       </div>
 
-      {/* Statistics and manual overrides */}
+      {/* Statistics and manual field review */}
       <div className="col-span-1 md:col-span-1 space-y-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">{t("detectionResults.statistics")}</h2>
@@ -138,7 +139,15 @@ export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }:
               <span className="font-semibold">{totalFields}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">TextBox multiline</span>
+              <span className="text-gray-600">Campi attivi</span>
+              <span className="font-semibold">{activeFields}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Campi spenti</span>
+              <span className="font-semibold">{disabledFields}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Text multi</span>
               <span className="font-semibold">{totalMultilineTextBoxes}</span>
             </div>
             <div className="flex justify-between">
@@ -157,68 +166,74 @@ export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }:
         </div>
 
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-3">TextBox layout</h3>
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3 max-h-[32rem] overflow-y-auto">
-            {currentPageTextBoxes.length === 0 ? (
-              <p className="text-sm text-gray-500">No TextBox detected on this page.</p>
+          <h3 className="text-lg font-bold text-gray-900 mb-3">Field review</h3>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3 max-h-[36rem] overflow-y-auto">
+            {currentPage.fields.length === 0 ? (
+              <p className="text-sm text-gray-500">No fields detected on this page.</p>
             ) : (
-              currentPageTextBoxes.map((field) => {
-                const fieldId = field.fieldId!;
-                const isMultiline = field.textLayout === "multiline";
-                const isManual = field.textLayoutSource === "manual";
+              currentPage.fields.map((field) => {
+                const fieldId = field.fieldId;
+                const fieldKind = getSafeFieldKind(field);
+                const fieldColors = getFieldColors(fieldKind);
+                const isEnabled = field.enabled !== false;
+                const isManualKind = field.fieldKindSource === "manual";
+
+                if (!fieldId) {
+                  return null;
+                }
 
                 return (
-                  <div key={fieldId} className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="font-semibold text-gray-900">{field.fieldLabel ?? fieldId}</div>
-                        <div className="text-xs text-gray-500">
-                          {getTextLayoutLabel(field.textLayout)} · {field.estimatedLines ?? 1} linee stimate
-                          {isManual ? " · manuale" : " · auto"}
-                        </div>
-                      </div>
-                      <div
-                        className="w-4 h-4 rounded mt-1 shrink-0"
-                        style={{
-                          backgroundColor: isMultiline
-                            ? FIELD_COLORS.TextBoxMultiline.label
-                            : FIELD_COLORS.TextBox.label,
-                        }}
+                  <div
+                    key={fieldId}
+                    className={`rounded-lg border p-3 space-y-2 ${
+                      isEnabled ? "border-gray-200 bg-white" : "border-gray-200 bg-gray-100 opacity-75"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={(event) => onSetFieldEnabled(fieldId, event.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 cursor-pointer shrink-0"
+                        style={{ accentColor: fieldColors.label }}
+                        title={isEnabled ? "Campo incluso nel PDF" : "Campo escluso dal PDF"}
+                      />
+
+                      <input
+                        key={`${fieldId}-${field.fieldName}`}
+                        defaultValue={field.fieldName ?? fieldId}
+                        onBlur={(event) => onSetFieldName(fieldId, event.currentTarget.value)}
+                        onKeyDown={blurOnEnter}
+                        className="min-w-0 flex-1 bg-transparent border border-transparent rounded px-1 py-0.5 text-sm font-semibold text-gray-900 focus:bg-white focus:border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                        title="Nome campo AcroForm"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onSetTextLayout(fieldId, "singleline")}
-                        disabled={!isMultiline && isManual}
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          !isMultiline ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-4 w-4 rounded shrink-0"
+                        style={{ backgroundColor: isEnabled ? fieldColors.label : "#9CA3AF" }}
+                      />
+                      <select
+                        value={fieldKind}
+                        onChange={(event) => onSetFieldKind(fieldId, event.target.value as FieldKind)}
+                        className="min-w-0 flex-1 px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        Single
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onSetTextLayout(fieldId, "multiline")}
-                        disabled={isMultiline && isManual}
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          isMultiline ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        Multi
-                      </button>
+                        {FIELD_KIND_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    {isManual && (
-                      <button
-                        type="button"
-                        onClick={() => onResetTextLayout(fieldId)}
-                        className="w-full px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      >
-                        Torna ad auto
-                      </button>
-                    )}
+                    <div className="text-xs text-gray-500 flex flex-wrap gap-x-2 gap-y-1">
+                      <span>{field.fieldLabel ?? fieldId}</span>
+                      <span>{(field.confidence * 100).toFixed(0)}%</span>
+                      <span>{getFieldKindLabel(fieldKind)}</span>
+                      {typeof field.estimatedLines === "number" && <span>{field.estimatedLines} linee stimate</span>}
+                      {isManualKind && <span>manuale</span>}
+                    </div>
                   </div>
                 );
               })
