@@ -29,6 +29,7 @@ const AVAILABLE_MODELS: ModelOption[] = [
 interface ModelConfiguration {
   selectedModel: ModelType;
   confidenceThreshold: number;
+  textBoxFontSize: number | null;
 }
 
 interface PdfFileState {
@@ -42,6 +43,7 @@ export function FormFieldsDetection() {
   const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration>({
     selectedModel: "FFDNet-S",
     confidenceThreshold: 0.25,
+    textBoxFontSize: null,
   });
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
@@ -158,6 +160,7 @@ export function FormFieldsDetection() {
       pdfFile: pdfFile.file,
       detectionResult,
       stripExistingAcroFields: pdfFile.hasAcrofields,
+      textBoxFontSize: modelConfiguration.textBoxFontSize,
     });
 
     if (!acroFieldsResult.success) {
@@ -174,9 +177,11 @@ export function FormFieldsDetection() {
       acroFieldsResult.data.pdfBytes.buffer instanceof ArrayBuffer
         ? acroFieldsResult.data.pdfBytes.buffer
         : new ArrayBuffer(0);
+
     const pdfBlob = new Blob([arrayBuffer], {
       type: "application/pdf",
     });
+
     const pdfWithAcroFieldsBlobUrl = URL.createObjectURL(pdfBlob);
 
     const detectionDataWithDrawings = drawDetections(detectionResult.data);
@@ -187,7 +192,9 @@ export function FormFieldsDetection() {
       modelInfo: detectionResult.data.modelInfo,
       pdfWithAcroFieldsBlobUrl,
       confidenceThreshold: modelConfiguration.confidenceThreshold,
+      textBoxFontSize: modelConfiguration.textBoxFontSize,
     });
+
     setStatus({ type: "idle" });
   };
 
@@ -211,6 +218,13 @@ export function FormFieldsDetection() {
               setModelConfiguration((prev) => ({
                 ...prev,
                 confidenceThreshold: threshold,
+              }))
+            }
+            textBoxFontSize={modelConfiguration.textBoxFontSize}
+            onChangeTextBoxFontSize={(fontSize) =>
+              setModelConfiguration((prev) => ({
+                ...prev,
+                textBoxFontSize: fontSize !== null && Number.isFinite(fontSize) && fontSize > 0 ? fontSize : null,
               }))
             }
           />

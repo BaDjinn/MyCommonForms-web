@@ -15,7 +15,9 @@
   },
   "modelSelection": {
     "selectModel": "Selecteer model:",
-    "confidenceThreshold": "Vertrouwensdrempel:"
+    "confidenceThreshold": "Vertrouwensdrempel:",
+    "textBoxFontSize": "TextBox-lettergrootte:",
+    "auto": "Auto"
   },
   "processingSteps": {
     "step1": "Stap 1:",
@@ -46,7 +48,9 @@
     "fieldsDetected": "Gedetecteerde velden:",
     "currentPage": "Huidige pagina:",
     "processingTime": "Verwerkingstijd:",
-    "pageOfTotal": "Pagina {{current}} van {{total}}"
+    "pageOfTotal": "Pagina {{current}} van {{total}}",
+    "textBoxFontSize": "TextBox-lettergrootte:",
+    "auto": "Auto"
   },
   "errors": {
     "invalidPdfFile": "Selecteer een geldig PDF-bestand",

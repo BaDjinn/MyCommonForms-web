@@ -15,7 +15,9 @@
   },
   "modelSelection": {
     "selectModel": "Sélectionner le modèle :",
-    "confidenceThreshold": "Seuil de confiance :"
+    "confidenceThreshold": "Seuil de confiance :",
+    "textBoxFontSize": "Taille de police TextBox :",
+    "auto": "Auto"
   },
   "processingSteps": {
     "step1": "Étape 1 :",
@@ -46,7 +48,9 @@
     "fieldsDetected": "Champs détectés :",
     "currentPage": "Page actuelle :",
     "processingTime": "Temps de traitement :",
-    "pageOfTotal": "Page {{current}} sur {{total}}"
+    "pageOfTotal": "Page {{current}} sur {{total}}",
+    "textBoxFontSize": "Taille de police TextBox :",
+    "auto": "Auto"
   },
   "errors": {
     "invalidPdfFile": "Veuillez sélectionner un fichier PDF valide",

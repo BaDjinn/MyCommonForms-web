@@ -15,7 +15,9 @@
   },
   "modelSelection": {
     "selectModel": "Vali mudel:",
-    "confidenceThreshold": "Kindluse lävi:"
+    "confidenceThreshold": "Kindluse lävi:",
+    "textBoxFontSize": "TextBox fondi suurus:",
+    "auto": "Auto"
   },
   "processingSteps": {
     "step1": "Samm 1:",
@@ -46,7 +48,9 @@
     "fieldsDetected": "Tuvastatud väljad:",
     "currentPage": "Praegune lehekülg:",
     "processingTime": "Töötlemisaeg:",
-    "pageOfTotal": "Lehekülg {{current}} / {{total}}"
+    "pageOfTotal": "Lehekülg {{current}} / {{total}}",
+    "textBoxFontSize": "TextBox fondi suurus:",
+    "auto": "Auto"
   },
   "errors": {
     "invalidPdfFile": "Palun vali kehtiv PDF-fail",

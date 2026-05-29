@@ -15,7 +15,9 @@
   },
   "modelSelection": {
     "selectModel": "Select Model:",
-    "confidenceThreshold": "Confidence Threshold:"
+    "confidenceThreshold": "Confidence Threshold:",
+    "textBoxFontSize": "TextBox font size:",
+    "auto": "Auto"
   },
   "processingSteps": {
     "step1": "Step 1:",
@@ -46,7 +48,9 @@
     "fieldsDetected": "Fields Detected:",
     "currentPage": "Current Page:",
     "processingTime": "Processing Time:",
-    "pageOfTotal": "Page {{current}} of {{total}}"
+    "pageOfTotal": "Page {{current}} of {{total}}",
+    "textBoxFontSize": "TextBox font size:",
+    "auto": "Auto"
   },
   "errors": {
     "invalidPdfFile": "Please select a valid PDF file",
