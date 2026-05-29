@@ -5,11 +5,14 @@ import { applyNonMaximumSuppression } from "../lib/utils";
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
 
 export type FieldType = "ChoiceButton" | "Signature" | "TextBox";
+export type TextLayout = "singleline" | "multiline";
 
 export interface DetectedField {
   type: FieldType;
   bbox: [number, number, number, number];
   confidence: number;
+  textLayout?: TextLayout;
+  estimatedLines?: number;
 }
 
 const CLASS_NAMES: readonly FieldType[] = ["TextBox", "ChoiceButton", "Signature"];
@@ -51,16 +54,9 @@ let cachedSession: ort.InferenceSession | null = null;
 
 async function createSessionWithFallback(modelPath: string) {
   const candidates: ort.InferenceSession.SessionOptions[] = [
-    // 1) WebNN su NPU
     { executionProviders: [{ name: "webnn", deviceType: "npu", powerPreference: "low-power" }] },
-
-    // 2) WebNN su GPU
     { executionProviders: [{ name: "webnn", deviceType: "gpu", powerPreference: "high-performance" }] },
-
-    // 3) WebGPU
     { executionProviders: ["webgpu"] },
-
-    // 4) WASM (CPU)
     { executionProviders: ["wasm"] },
   ];
 
@@ -88,7 +84,6 @@ const runInference = async (
     const { session, selectedEP } = await createSessionWithFallback(modelPath);
     cachedSession = session;
 
-    // opzionale: log o postMessage per debug
     self.postMessage({ type: "ep-selected", data: selectedEP });
     console.log(`Inference session created with execution provider: ${JSON.stringify(selectedEP)}`);
   }

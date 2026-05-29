@@ -31,6 +31,11 @@ export function DetectionResults({ result }: DetectionResultsProps) {
 
   const currentPage = result.pages[currentPageIndex] || result.pages[0];
   const totalFields = result.pages.reduce((sum, page) => sum + page.fields.length, 0);
+  const totalMultilineTextBoxes = result.pages.reduce(
+    (sum, page) =>
+      sum + page.fields.filter((field) => field.type === "TextBox" && field.textLayout === "multiline").length,
+    0
+  );
 
   const handlePreviousPage = () => {
     setCurrentPageIndex((prev) => Math.max(0, prev - 1));
@@ -58,7 +63,11 @@ export function DetectionResults({ result }: DetectionResultsProps) {
           <div className="flex flex-wrap gap-3 md:gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.TextBox.label }}></div>
-              <span>TextBox</span>
+              <span>TextBox singleline</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.TextBoxMultiline.label }}></div>
+              <span>TextBox multiline</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded" style={{ backgroundColor: FIELD_COLORS.ChoiceButton.label }}></div>
@@ -119,6 +128,10 @@ export function DetectionResults({ result }: DetectionResultsProps) {
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.fieldsDetected")}</span>
             <span className="font-semibold">{totalFields}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">TextBox multiline</span>
+            <span className="font-semibold">{totalMultilineTextBoxes}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.textBoxFontSize")}</span>

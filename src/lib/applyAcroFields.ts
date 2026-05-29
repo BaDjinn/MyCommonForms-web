@@ -1,7 +1,8 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import type { DetectionResult } from "./formFieldDetection";
+import { getEstimatedLineCapacity } from "./drawDetections";
 
-const MULTILINE_HEIGHT_THRESHOLD = 2;
+const MULTILINE_MIN_LINES = 2;
 
 interface ApplyAcroFieldsParameters {
   pdfFile: File;
@@ -75,9 +76,6 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         continue;
       }
 
-      const totalHeight = fields.reduce((sum, field) => sum + field.bbox[3], 0);
-      const meanHeight = totalHeight / fields.length;
-
       for (const field of fields) {
         const fieldType = field.type;
         if (!fieldTypeCounters[fieldType]) {
@@ -105,13 +103,10 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         const absoluteW = pdfW;
         const absoluteH = pdfH;
 
-        const normalizedFieldHeight = field.bbox[3];
-        const heightRatio = normalizedFieldHeight / meanHeight;
-
         try {
           switch (fieldType) {
             case "TextBox": {
-              const isMultiline = heightRatio >= MULTILINE_HEIGHT_THRESHOLD;
+              const estimatedLines = getEstimatedLineCapacity(absoluteH, textBoxFontSize);
               const textField = form.createTextField(fieldName);
               textField.addToPage(pdfPage, {
                 x: absoluteX,
@@ -122,7 +117,7 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
                 textColor: rgb(0, 0, 0),
               });
               textField.setFontSize(textBoxFontSize);
-              if (isMultiline) {
+              if (estimatedLines >= MULTILINE_MIN_LINES) {
                 textField.enableMultiline();
               }
               const acroField = textField.acroField;

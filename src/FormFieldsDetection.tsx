@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 //import * as ort from "onnxruntime-web";
 import * as pdfjsLib from "pdfjs-dist";
-import { detectFormFields } from "./lib/formFieldDetection";
+import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
 import { drawDetections } from "./lib/drawDetections";
@@ -45,10 +45,111 @@ export function FormFieldsDetection() {
     confidenceThreshold: 0.25,
     textBoxFontSize: 9,
   });
+  const [rawDetectionResult, setRawDetectionResult] = useState<DetectionResult | null>(null);
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfObjectUrlRef = useRef<string | null>(null);
+  const regenerationRequestIdRef = useRef(0);
+
+  const revokeCurrentPdfObjectUrl = useCallback(() => {
+    if (pdfObjectUrlRef.current) {
+      URL.revokeObjectURL(pdfObjectUrlRef.current);
+      pdfObjectUrlRef.current = null;
+    }
+  }, []);
+
+  const clearGeneratedResult = useCallback(() => {
+    regenerationRequestIdRef.current += 1;
+    revokeCurrentPdfObjectUrl();
+    setResult(null);
+    setStatus({ type: "idle" });
+  }, [revokeCurrentPdfObjectUrl]);
+
+  useEffect(() => {
+    return () => {
+      revokeCurrentPdfObjectUrl();
+    };
+  }, [revokeCurrentPdfObjectUrl]);
+
+  const regenerateResultFromDetection = useCallback(
+    async (detectionResult: DetectionResult, selectedPdfFile: PdfFileState, textBoxFontSize: number) => {
+      if (!detectionResult.success) {
+        return;
+      }
+
+      const requestId = ++regenerationRequestIdRef.current;
+
+      setStatus({
+        type: "loading",
+        message: t("statusMessages.applyingAcroFields"),
+      });
+
+      const acroFieldsResult = await applyAcroFields({
+        pdfFile: selectedPdfFile.file,
+        detectionResult,
+        stripExistingAcroFields: selectedPdfFile.hasAcrofields,
+        textBoxFontSize,
+      });
+
+      if (requestId !== regenerationRequestIdRef.current) {
+        return;
+      }
+
+      if (!acroFieldsResult.success) {
+        setStatus({
+          type: "error",
+          message: t("errors.acroFieldsFailed", {
+            errorMessage: acroFieldsResult.error.message,
+          }),
+        });
+        return;
+      }
+
+      const pdfBytes = acroFieldsResult.data.pdfBytes;
+      const pdfArrayBuffer = new ArrayBuffer(pdfBytes.byteLength);
+      new Uint8Array(pdfArrayBuffer).set(pdfBytes);
+
+      const pdfBlob = new Blob([pdfArrayBuffer], {
+        type: "application/pdf",
+      });
+
+      const pdfWithAcroFieldsBlobUrl = URL.createObjectURL(pdfBlob);
+
+      const detectionDataWithDrawings = drawDetections(detectionResult.data, {
+        textBoxFontSize,
+      });
+
+      if (requestId !== regenerationRequestIdRef.current) {
+        URL.revokeObjectURL(pdfWithAcroFieldsBlobUrl);
+        return;
+      }
+
+      revokeCurrentPdfObjectUrl();
+      pdfObjectUrlRef.current = pdfWithAcroFieldsBlobUrl;
+
+      setResult({
+        pages: detectionDataWithDrawings.pages,
+        processingTime: detectionResult.data.processingTime,
+        modelInfo: detectionResult.data.modelInfo,
+        pdfWithAcroFieldsBlobUrl,
+        confidenceThreshold: modelConfiguration.confidenceThreshold,
+        textBoxFontSize,
+      });
+
+      setStatus({ type: "idle" });
+    },
+    [modelConfiguration.confidenceThreshold, revokeCurrentPdfObjectUrl, t]
+  );
+
+  useEffect(() => {
+    if (!pdfFile || !rawDetectionResult?.success) {
+      return;
+    }
+
+    void regenerateResultFromDetection(rawDetectionResult, pdfFile, modelConfiguration.textBoxFontSize);
+  }, [pdfFile, rawDetectionResult, modelConfiguration.textBoxFontSize, regenerateResultFromDetection]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -57,6 +158,9 @@ export function FormFieldsDetection() {
       setStatus({ type: "error", message: t("errors.invalidPdfFile") });
       return;
     }
+
+    clearGeneratedResult();
+    setRawDetectionResult(null);
 
     const validationResult = await ensureValidPDF(file);
 
@@ -107,14 +211,15 @@ export function FormFieldsDetection() {
     } else {
       setStatus({ type: "idle" });
     }
-
-    setResult(null);
   };
 
   const handleDetectFormFields = async () => {
     if (!pdfFile) {
       return;
     }
+
+    clearGeneratedResult();
+    setRawDetectionResult(null);
 
     const detectionResult = await detectFormFields({
       pdfFile: pdfFile.file,
@@ -151,48 +256,7 @@ export function FormFieldsDetection() {
       return;
     }
 
-    setStatus({
-      type: "loading",
-      message: t("statusMessages.applyingAcroFields"),
-    });
-
-    const acroFieldsResult = await applyAcroFields({
-      pdfFile: pdfFile.file,
-      detectionResult,
-      stripExistingAcroFields: pdfFile.hasAcrofields,
-      textBoxFontSize: modelConfiguration.textBoxFontSize,
-    });
-
-    if (!acroFieldsResult.success) {
-      setStatus({
-        type: "error",
-        message: t("errors.acroFieldsFailed", {
-          errorMessage: acroFieldsResult.error.message,
-        }),
-      });
-      return;
-    }
-
-    const arrayBuffer: ArrayBuffer =
-      acroFieldsResult.data.pdfBytes.buffer instanceof ArrayBuffer
-        ? acroFieldsResult.data.pdfBytes.buffer
-        : new ArrayBuffer(0);
-    const pdfBlob = new Blob([arrayBuffer], {
-      type: "application/pdf",
-    });
-    const pdfWithAcroFieldsBlobUrl = URL.createObjectURL(pdfBlob);
-
-    const detectionDataWithDrawings = drawDetections(detectionResult.data);
-
-    setResult({
-      pages: detectionDataWithDrawings.pages,
-      processingTime: detectionResult.data.processingTime,
-      modelInfo: detectionResult.data.modelInfo,
-      pdfWithAcroFieldsBlobUrl,
-      confidenceThreshold: modelConfiguration.confidenceThreshold,
-      textBoxFontSize: modelConfiguration.textBoxFontSize,
-    });
-    setStatus({ type: "idle" });
+    setRawDetectionResult(detectionResult);
   };
 
   return (
@@ -203,20 +267,24 @@ export function FormFieldsDetection() {
 
           <ModelSelection
             selectedModel={modelConfiguration.selectedModel}
-            onSelectModel={(model) =>
+            onSelectModel={(model) => {
+              clearGeneratedResult();
+              setRawDetectionResult(null);
               setModelConfiguration((prev) => ({
                 ...prev,
                 selectedModel: model,
-              }))
-            }
+              }));
+            }}
             availableModels={AVAILABLE_MODELS}
             confidenceThreshold={modelConfiguration.confidenceThreshold}
-            onChangeConfidenceThreshold={(threshold) =>
+            onChangeConfidenceThreshold={(threshold) => {
+              clearGeneratedResult();
+              setRawDetectionResult(null);
               setModelConfiguration((prev) => ({
                 ...prev,
                 confidenceThreshold: threshold,
-              }))
-            }
+              }));
+            }}
             textBoxFontSize={modelConfiguration.textBoxFontSize}
             onChangeTextBoxFontSize={(fontSize) =>
               setModelConfiguration((prev) => ({
