@@ -66,6 +66,7 @@ export interface PdfMetadata {
 interface DrawDetectionsOptions {
   textBoxFontSize: number;
   fieldOverrides: FieldOverrides;
+  confidenceThreshold: number;
 }
 
 export const FIELD_KIND_OPTIONS: Array<{ value: FieldKind; label: string }> = [
@@ -179,30 +180,37 @@ export const addFieldMetadata = (
   pageIndex: number,
   pdfMetadata: PdfMetadata,
   textBoxFontSize: number,
-  fieldOverrides: FieldOverrides
+  fieldOverrides: FieldOverrides,
+  confidenceThreshold: number
 ): DetectedField[] => {
-  return fields.map((field, fieldIndex) => {
-    const fieldId = getFieldId(pageIndex, fieldIndex);
-    const autoFieldInfo = getAutoFieldKind(field, pdfMetadata, textBoxFontSize);
-    const fieldOverride = fieldOverrides[fieldId];
-    const fieldKind = fieldOverride?.fieldKind ?? autoFieldInfo.fieldKind;
-    const enabled = fieldOverride?.enabled ?? true;
-    const fieldName = getEffectiveFieldName(fieldId, fieldKind, pageIndex, fieldIndex, fieldOverrides);
-    const textLayout: TextLayout | undefined =
-      fieldKind === "text_multi" ? "multiline" : fieldKind === "text_single" ? "singleline" : autoFieldInfo.textLayout;
+  return fields
+    .map((field, fieldIndex) => {
+      const fieldId = getFieldId(pageIndex, fieldIndex);
+      const autoFieldInfo = getAutoFieldKind(field, pdfMetadata, textBoxFontSize);
+      const fieldOverride = fieldOverrides[fieldId];
+      const fieldKind = fieldOverride?.fieldKind ?? autoFieldInfo.fieldKind;
+      const enabled = fieldOverride?.enabled ?? true;
+      const fieldName = getEffectiveFieldName(fieldId, fieldKind, pageIndex, fieldIndex, fieldOverrides);
+      const textLayout: TextLayout | undefined =
+        fieldKind === "text_multi"
+          ? "multiline"
+          : fieldKind === "text_single"
+            ? "singleline"
+            : autoFieldInfo.textLayout;
 
-    return {
-      ...field,
-      fieldId,
-      fieldLabel: `F${fieldIndex + 1}`,
-      fieldName,
-      fieldKind,
-      fieldKindSource: fieldOverride?.fieldKind ? "manual" : "auto",
-      enabled,
-      estimatedLines: autoFieldInfo.estimatedLines,
-      textLayout,
-    };
-  });
+      return {
+        ...field,
+        fieldId,
+        fieldLabel: `F${fieldIndex + 1}`,
+        fieldName,
+        fieldKind,
+        fieldKindSource: fieldOverride?.fieldKind ? ("manual" as const) : ("auto" as const),
+        enabled,
+        estimatedLines: autoFieldInfo.estimatedLines,
+        textLayout,
+      };
+    })
+    .filter((field) => field.confidence >= confidenceThreshold);
 };
 
 const getFieldLabel = (field: DetectedField): string => {
@@ -283,7 +291,8 @@ export const drawDetections = (
       pageIndex,
       page.pdfMetadata,
       options.textBoxFontSize,
-      options.fieldOverrides
+      options.fieldOverrides,
+      options.confidenceThreshold
     );
 
     const canvas = document.createElement("canvas");

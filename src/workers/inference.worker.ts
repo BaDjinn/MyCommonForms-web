@@ -32,7 +32,7 @@ interface InferenceWorkerInput {
   imageWidth: number;
   imageHeight: number;
   modelPath: string;
-  confidenceThreshold: number;
+  candidateThreshold: number;
   isFirstPage: boolean;
 }
 
@@ -85,7 +85,7 @@ const runInference = async (
   imageWidth: number,
   imageHeight: number,
   modelPath: string,
-  confidenceThreshold: number,
+  candidateThreshold: number,
   isFirstPage: boolean
 ): Promise<DetectedField[]> => {
   if (isFirstPage || !cachedSession) {
@@ -138,7 +138,7 @@ const runInference = async (
     const maxScore = Math.max(...scores);
     const classId = scores.indexOf(maxScore);
 
-    if (maxScore > confidenceThreshold) {
+    if (maxScore > candidateThreshold) {
       detections.push({
         box: [cx / TARGET_SIZE, cy / TARGET_SIZE, w / TARGET_SIZE, h / TARGET_SIZE],
         classId,
@@ -165,7 +165,7 @@ const runInference = async (
 };
 
 self.onmessage = async (event: MessageEvent<InferenceWorkerInput>) => {
-  const { imageDataArray, imageWidth, imageHeight, modelPath, confidenceThreshold, isFirstPage } = event.data;
+  const { imageDataArray, imageWidth, imageHeight, modelPath, candidateThreshold, isFirstPage } = event.data;
 
   try {
     const fields = await runInference(
@@ -173,7 +173,7 @@ self.onmessage = async (event: MessageEvent<InferenceWorkerInput>) => {
       imageWidth,
       imageHeight,
       modelPath,
-      confidenceThreshold,
+      candidateThreshold,
       isFirstPage
     );
 

@@ -8,6 +8,7 @@ interface ApplyAcroFieldsParameters {
   stripExistingAcroFields: boolean;
   textBoxFontSize: number;
   fieldOverrides: FieldOverrides;
+  confidenceThreshold: number;
 }
 
 type ApplyAcroFieldsErrorCode =
@@ -59,7 +60,8 @@ const getPdfCoordinates = (
 };
 
 export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Promise<ApplyAcroFieldsResult> => {
-  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize, fieldOverrides } = parameters;
+  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize, fieldOverrides, confidenceThreshold } =
+    parameters;
 
   if (!detectionResult.success) {
     return {
@@ -104,7 +106,8 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         pageIndex,
         pageData.pdfMetadata,
         textBoxFontSize,
-        fieldOverrides
+        fieldOverrides,
+        confidenceThreshold
       );
 
       for (const field of fieldsWithMetadata) {

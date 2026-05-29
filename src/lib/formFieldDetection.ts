@@ -71,7 +71,8 @@ export type DetectionStatusUpdate =
 export interface DetectionParameters {
   pdfFile: File;
   modelPath: string;
-  confidenceThreshold: number;
+  candidateThreshold: number;
+  activeConfidenceThreshold: number;
   onUpdateDetectionStatus: (status: DetectionStatusUpdate) => void;
   onExecutionProviderSelected?: (executionProvider: string) => void;
 }
@@ -141,7 +142,16 @@ const renderPdfPageToImageData = async (
 };
 
 export const detectFormFields = async (parameters: DetectionParameters): Promise<DetectionResult> => {
-  const { pdfFile, modelPath, confidenceThreshold, onUpdateDetectionStatus, onExecutionProviderSelected } = parameters;
+  const {
+    pdfFile,
+    modelPath,
+    candidateThreshold,
+    activeConfidenceThreshold,
+    onUpdateDetectionStatus,
+    onExecutionProviderSelected,
+  } = parameters;
+
+  let worker: Worker | null = null;
 
   try {
     const startTime = performance.now();
@@ -162,7 +172,7 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
       modelName,
     });
 
-    const worker = new InferenceWorker();
+    worker = new InferenceWorker();
     const pages: PageDetectionData[] = [];
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -187,7 +197,7 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
           }
 
           if (type === "result") {
-            worker.removeEventListener("message", messageHandler);
+            worker?.removeEventListener("message", messageHandler);
             if (!data.success) {
               reject(new Error(data.error.message));
               return;
@@ -196,14 +206,14 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
           }
         };
 
-        worker.addEventListener("message", messageHandler);
+        worker?.addEventListener("message", messageHandler);
 
-        worker.postMessage({
+        worker?.postMessage({
           imageDataArray: imageData.data,
           imageWidth: imageData.width,
           imageHeight: imageData.height,
           modelPath,
-          confidenceThreshold,
+          candidateThreshold,
           isFirstPage: pageNum === 1,
         });
       });
@@ -216,9 +226,14 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
     }
 
     worker.terminate();
+    worker = null;
 
     const endTime = performance.now();
-    const totalFields = pages.reduce((sum, page) => sum + page.fields.length, 0);
+    const totalCandidates = pages.reduce((sum, page) => sum + page.fields.length, 0);
+    const activeCandidates = pages.reduce(
+      (sum, page) => sum + page.fields.filter((field) => field.confidence >= activeConfidenceThreshold).length,
+      0
+    );
 
     return {
       success: true,
@@ -227,11 +242,15 @@ export const detectFormFields = async (parameters: DetectionParameters): Promise
         processingTime: endTime - startTime,
         modelInfo:
           `Model: ${modelName}\n` +
-          `Detected Fields: ${totalFields}\n` +
-          `Confidence Threshold: ${confidenceThreshold}`,
+          `Candidate Fields: ${totalCandidates}\n` +
+          `Active Fields: ${activeCandidates}\n` +
+          `Candidate Threshold: ${candidateThreshold}\n` +
+          `Active Confidence Threshold: ${activeConfidenceThreshold}`,
       },
     };
   } catch (e) {
+    worker?.terminate();
+
     const error = e as Error;
     return {
       success: false,
