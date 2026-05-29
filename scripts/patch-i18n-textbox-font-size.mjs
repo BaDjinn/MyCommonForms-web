@@ -4,72 +4,32 @@ import path from "node:path";
 const LOCALES_DIR = path.resolve("src/i18n/locales");
 
 const TRANSLATIONS = {
-  en: {
-    textBoxFontSize: "TextBox font size:",
-    auto: "Auto",
-  },
-  it: {
-    textBoxFontSize: "Dimensione carattere TextBox:",
-    auto: "Auto",
-  },
-  de: {
-    textBoxFontSize: "TextBox-Schriftgröße:",
-    auto: "Auto",
-  },
-  es: {
-    textBoxFontSize: "Tamaño de fuente TextBox:",
-    auto: "Auto",
-  },
-  et: {
-    textBoxFontSize: "TextBox fondi suurus:",
-    auto: "Auto",
-  },
-  fr: {
-    textBoxFontSize: "Taille de police TextBox :",
-    auto: "Auto",
-  },
-  nl: {
-    textBoxFontSize: "TextBox-lettergrootte:",
-    auto: "Auto",
-  },
-  pl: {
-    textBoxFontSize: "Rozmiar czcionki TextBox:",
-    auto: "Auto",
-  },
-  pt: {
-    textBoxFontSize: "Tamanho da fonte TextBox:",
-    auto: "Auto",
-  },
+  en: "TextBox font size:",
+  it: "Dimensione carattere TextBox:",
+  de: "TextBox-Schriftgröße:",
+  es: "Tamaño de fuente TextBox:",
+  et: "TextBox fondi suurus:",
+  fr: "Taille de police TextBox :",
+  nl: "TextBox-lettergrootte:",
+  pl: "Rozmiar czcionki TextBox:",
+  pt: "Tamanho da fonte TextBox:",
 };
 
-const getLocaleFromFilename = (filename) => path.basename(filename, ".json");
+const localeFiles = fs.readdirSync(LOCALES_DIR).filter((filename) => filename.endsWith(".json"));
 
-const patchLocale = (filePath) => {
-  const locale = getLocaleFromFilename(filePath);
-  const translation = TRANSLATIONS[locale] ?? TRANSLATIONS.en;
+for (const filename of localeFiles) {
+  const filePath = path.join(LOCALES_DIR, filename);
+  const locale = path.basename(filename, ".json");
+  const textBoxFontSize = TRANSLATIONS[locale] ?? TRANSLATIONS.en;
 
-  const raw = fs.readFileSync(filePath, "utf8");
-  const json = JSON.parse(raw);
+  const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
   json.modelSelection ??= {};
   json.detectionResults ??= {};
 
-  json.modelSelection.textBoxFontSize = translation.textBoxFontSize;
-  json.modelSelection.auto = translation.auto;
-
-  json.detectionResults.textBoxFontSize = translation.textBoxFontSize;
-  json.detectionResults.auto = translation.auto;
+  json.modelSelection.textBoxFontSize = textBoxFontSize;
+  json.detectionResults.textBoxFontSize = textBoxFontSize;
 
   fs.writeFileSync(filePath, `${JSON.stringify(json, null, 2)}\n`, "utf8");
-
   console.log(`Patched ${path.relative(process.cwd(), filePath)}`);
-};
-
-const files = fs
-  .readdirSync(LOCALES_DIR)
-  .filter((filename) => filename.endsWith(".json"))
-  .map((filename) => path.join(LOCALES_DIR, filename));
-
-for (const file of files) {
-  patchLocale(file);
 }

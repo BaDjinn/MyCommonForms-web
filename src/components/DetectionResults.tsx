@@ -14,7 +14,7 @@ interface ProcessingResult {
   modelInfo: string;
   pdfWithAcroFieldsBlobUrl: string;
   confidenceThreshold: number;
-  textBoxFontSize: number | null;
+  textBoxFontSize: number;
 }
 
 interface DetectionResultsProps {
@@ -69,7 +69,6 @@ export function DetectionResults({ result }: DetectionResultsProps) {
               <span>Signature</span>
             </div>
           </div>
-
           {result.pages.length > 1 && (
             <div className="flex items-center gap-4">
               <button
@@ -113,29 +112,22 @@ export function DetectionResults({ result }: DetectionResultsProps) {
             <span className="text-gray-600">{t("detectionResults.totalPages")}</span>
             <span className="font-semibold">{result.pages.length}</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.confidenceThresholdLabel")}</span>
             <span className="font-semibold">{(result.confidenceThreshold * 100).toFixed(0)}%</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.fieldsDetected")}</span>
             <span className="font-semibold">{totalFields}</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.textBoxFontSize")}</span>
-            <span className="font-semibold">
-              {result.textBoxFontSize === null ? t("detectionResults.auto") : `${result.textBoxFontSize} pt`}
-            </span>
+            <span className="font-semibold">{result.textBoxFontSize} pt</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.currentPage")}</span>
             <span className="font-semibold">{currentPage.fields.length}</span>
           </div>
-
           <div className="flex justify-between">
             <span className="text-gray-600">{t("detectionResults.processingTime")}</span>
             <span className="font-semibold text-emerald-600">{result.processingTime.toFixed(0)}ms</span>

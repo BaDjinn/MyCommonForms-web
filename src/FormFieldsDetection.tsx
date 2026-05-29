@@ -29,7 +29,7 @@ const AVAILABLE_MODELS: ModelOption[] = [
 interface ModelConfiguration {
   selectedModel: ModelType;
   confidenceThreshold: number;
-  textBoxFontSize: number | null;
+  textBoxFontSize: number;
 }
 
 interface PdfFileState {
@@ -43,7 +43,7 @@ export function FormFieldsDetection() {
   const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration>({
     selectedModel: "FFDNet-S",
     confidenceThreshold: 0.25,
-    textBoxFontSize: null,
+    textBoxFontSize: 9,
   });
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
@@ -177,11 +177,9 @@ export function FormFieldsDetection() {
       acroFieldsResult.data.pdfBytes.buffer instanceof ArrayBuffer
         ? acroFieldsResult.data.pdfBytes.buffer
         : new ArrayBuffer(0);
-
     const pdfBlob = new Blob([arrayBuffer], {
       type: "application/pdf",
     });
-
     const pdfWithAcroFieldsBlobUrl = URL.createObjectURL(pdfBlob);
 
     const detectionDataWithDrawings = drawDetections(detectionResult.data);
@@ -194,7 +192,6 @@ export function FormFieldsDetection() {
       confidenceThreshold: modelConfiguration.confidenceThreshold,
       textBoxFontSize: modelConfiguration.textBoxFontSize,
     });
-
     setStatus({ type: "idle" });
   };
 
@@ -224,7 +221,7 @@ export function FormFieldsDetection() {
             onChangeTextBoxFontSize={(fontSize) =>
               setModelConfiguration((prev) => ({
                 ...prev,
-                textBoxFontSize: fontSize !== null && Number.isFinite(fontSize) && fontSize > 0 ? fontSize : null,
+                textBoxFontSize: fontSize,
               }))
             }
           />

@@ -1,14 +1,13 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import type { DetectionResult } from "./formFieldDetection";
 
-const FONT_SIZE_MULTIPLIER = 0.6;
 const MULTILINE_HEIGHT_THRESHOLD = 2;
 
 interface ApplyAcroFieldsParameters {
   pdfFile: File;
   detectionResult: DetectionResult;
   stripExistingAcroFields: boolean;
-  textBoxFontSize?: number | null;
+  textBoxFontSize: number;
 }
 
 type ApplyAcroFieldsErrorCode =
@@ -27,14 +26,6 @@ export type ApplyAcroFieldsResult =
 
 const generateFieldName = (type: string, index: number): string => {
   return `${type.toLowerCase()}_${index}`;
-};
-
-const resolveTextBoxFontSize = (explicitFontSize: number | null | undefined, automaticFontSize: number): number => {
-  if (typeof explicitFontSize === "number" && Number.isFinite(explicitFontSize) && explicitFontSize > 0) {
-    return explicitFontSize;
-  }
-
-  return automaticFontSize;
 };
 
 export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Promise<ApplyAcroFieldsResult> => {
@@ -89,11 +80,9 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
 
       for (const field of fields) {
         const fieldType = field.type;
-
         if (!fieldTypeCounters[fieldType]) {
           fieldTypeCounters[fieldType] = 0;
         }
-
         const fieldIndex = fieldTypeCounters[fieldType]++;
         const fieldName = generateFieldName(fieldType, fieldIndex);
 
@@ -124,7 +113,6 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
             case "TextBox": {
               const isMultiline = heightRatio >= MULTILINE_HEIGHT_THRESHOLD;
               const textField = form.createTextField(fieldName);
-
               textField.addToPage(pdfPage, {
                 x: absoluteX,
                 y: absoluteY,
@@ -133,32 +121,21 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
                 borderWidth: 0,
                 textColor: rgb(0, 0, 0),
               });
-
-              const automaticFontSize = isMultiline
-                ? (absoluteH / heightRatio) * FONT_SIZE_MULTIPLIER
-                : absoluteH * FONT_SIZE_MULTIPLIER;
-
-              textField.setFontSize(resolveTextBoxFontSize(textBoxFontSize, automaticFontSize));
-
+              textField.setFontSize(textBoxFontSize);
               if (isMultiline) {
                 textField.enableMultiline();
               }
-
               const acroField = textField.acroField;
               const widgets = acroField.getWidgets();
-
               widgets.forEach((widget) => {
                 const widgetDict = widget.dict;
                 const mkDict = widgetDict.context.obj({});
                 widgetDict.set(widgetDict.context.obj("MK"), mkDict);
               });
-
               break;
             }
-
             case "ChoiceButton": {
               const checkBox = form.createCheckBox(fieldName);
-
               checkBox.addToPage(pdfPage, {
                 x: absoluteX,
                 y: absoluteY,
@@ -166,22 +143,17 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
                 height: absoluteH,
                 borderWidth: 0,
               });
-
               const acroField = checkBox.acroField;
               const widgets = acroField.getWidgets();
-
               widgets.forEach((widget) => {
                 const widgetDict = widget.dict;
                 const mkDict = widgetDict.context.obj({});
                 widgetDict.set(widgetDict.context.obj("MK"), mkDict);
               });
-
               break;
             }
-
             case "Signature": {
               const signatureField = form.createTextField(fieldName);
-
               signatureField.addToPage(pdfPage, {
                 x: absoluteX,
                 y: absoluteY,
@@ -190,29 +162,22 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
                 borderWidth: 0,
                 textColor: rgb(0, 0, 0),
               });
-
-              const fontSize = absoluteH * FONT_SIZE_MULTIPLIER;
-              signatureField.setFontSize(fontSize);
-
+              signatureField.setFontSize(textBoxFontSize);
               const acroField = signatureField.acroField;
               const widgets = acroField.getWidgets();
-
               widgets.forEach((widget) => {
                 const widgetDict = widget.dict;
                 const mkDict = widgetDict.context.obj({});
                 widgetDict.set(widgetDict.context.obj("MK"), mkDict);
               });
-
               break;
             }
-
             default:
               console.error(`Unsupported field type: ${fieldType}`);
               break;
           }
         } catch (e) {
           const error = e as Error;
-
           return {
             success: false,
             error: {
@@ -234,7 +199,6 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
     };
   } catch (e) {
     const error = e as Error;
-
     if (error.message.includes("load")) {
       return {
         success: false,
@@ -244,7 +208,6 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         },
       };
     }
-
     if (error.message.includes("save")) {
       return {
         success: false,
@@ -254,7 +217,6 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         },
       };
     }
-
     return {
       success: false,
       error: {

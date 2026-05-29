@@ -13,9 +13,11 @@ interface ModelSelectionProps {
   availableModels: ModelOption[];
   confidenceThreshold: number;
   onChangeConfidenceThreshold: (threshold: number) => void;
-  textBoxFontSize: number | null;
-  onChangeTextBoxFontSize: (fontSize: number | null) => void;
+  textBoxFontSize: number;
+  onChangeTextBoxFontSize: (fontSize: number) => void;
 }
+
+const TEXT_BOX_FONT_SIZE_OPTIONS = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24];
 
 export function ModelSelection({
   selectedModel,
@@ -65,22 +67,19 @@ export function ModelSelection({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t("modelSelection.textBoxFontSize")}{" "}
-            {textBoxFontSize === null ? t("modelSelection.auto") : `${textBoxFontSize} pt`}
+            {t("modelSelection.textBoxFontSize")} {textBoxFontSize} pt
           </label>
-          <input
-            type="number"
-            min="1"
-            max="72"
-            step="0.5"
-            value={textBoxFontSize ?? ""}
-            placeholder={t("modelSelection.auto")}
-            onChange={(e) => {
-              const value = e.target.value.trim();
-              onChangeTextBoxFontSize(value === "" ? null : Number(value));
-            }}
+          <select
+            value={textBoxFontSize}
+            onChange={(e) => onChangeTextBoxFontSize(Number(e.target.value))}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          >
+            {TEXT_BOX_FONT_SIZE_OPTIONS.map((fontSize) => (
+              <option key={fontSize} value={fontSize}>
+                {fontSize} pt
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>
