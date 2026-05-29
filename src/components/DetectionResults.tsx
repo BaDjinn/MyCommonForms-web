@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type DetectedField } from "../workers/inference.worker";
+import { type DetectedField, type TextLayout } from "../workers/inference.worker";
 import { FIELD_COLORS } from "../lib/drawDetections";
 
 interface PageResult {
@@ -19,9 +19,15 @@ interface ProcessingResult {
 
 interface DetectionResultsProps {
   result: ProcessingResult | null;
+  onSetTextLayout: (fieldId: string, textLayout: TextLayout) => void;
+  onResetTextLayout: (fieldId: string) => void;
 }
 
-export function DetectionResults({ result }: DetectionResultsProps) {
+const getTextLayoutLabel = (textLayout: TextLayout | undefined): string => {
+  return textLayout === "multiline" ? "multiline" : "singleline";
+};
+
+export function DetectionResults({ result, onSetTextLayout, onResetTextLayout }: DetectionResultsProps) {
   const { t } = useTranslation();
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
@@ -30,6 +36,7 @@ export function DetectionResults({ result }: DetectionResultsProps) {
   }
 
   const currentPage = result.pages[currentPageIndex] || result.pages[0];
+  const currentPageTextBoxes = currentPage.fields.filter((field) => field.type === "TextBox" && field.fieldId);
   const totalFields = result.pages.reduce((sum, page) => sum + page.fields.length, 0);
   const totalMultilineTextBoxes = result.pages.reduce(
     (sum, page) =>
@@ -113,37 +120,109 @@ export function DetectionResults({ result }: DetectionResultsProps) {
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="col-span-1 md:col-span-1">
-        <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">{t("detectionResults.statistics")}</h2>
-        <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4">
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.totalPages")}</span>
-            <span className="font-semibold">{result.pages.length}</span>
+      {/* Statistics and manual overrides */}
+      <div className="col-span-1 md:col-span-1 space-y-4">
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">{t("detectionResults.statistics")}</h2>
+          <div className="bg-gray-50 rounded-lg p-4 md:p-6 space-y-3 md:space-y-4">
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.totalPages")}</span>
+              <span className="font-semibold">{result.pages.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.confidenceThresholdLabel")}</span>
+              <span className="font-semibold">{(result.confidenceThreshold * 100).toFixed(0)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.fieldsDetected")}</span>
+              <span className="font-semibold">{totalFields}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">TextBox multiline</span>
+              <span className="font-semibold">{totalMultilineTextBoxes}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.textBoxFontSize")}</span>
+              <span className="font-semibold">{result.textBoxFontSize} pt</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.currentPage")}</span>
+              <span className="font-semibold">{currentPage.fields.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">{t("detectionResults.processingTime")}</span>
+              <span className="font-semibold text-emerald-600">{result.processingTime.toFixed(0)}ms</span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.confidenceThresholdLabel")}</span>
-            <span className="font-semibold">{(result.confidenceThreshold * 100).toFixed(0)}%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.fieldsDetected")}</span>
-            <span className="font-semibold">{totalFields}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">TextBox multiline</span>
-            <span className="font-semibold">{totalMultilineTextBoxes}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.textBoxFontSize")}</span>
-            <span className="font-semibold">{result.textBoxFontSize} pt</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.currentPage")}</span>
-            <span className="font-semibold">{currentPage.fields.length}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">{t("detectionResults.processingTime")}</span>
-            <span className="font-semibold text-emerald-600">{result.processingTime.toFixed(0)}ms</span>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 mb-3">TextBox layout</h3>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3 max-h-[32rem] overflow-y-auto">
+            {currentPageTextBoxes.length === 0 ? (
+              <p className="text-sm text-gray-500">No TextBox detected on this page.</p>
+            ) : (
+              currentPageTextBoxes.map((field) => {
+                const fieldId = field.fieldId!;
+                const isMultiline = field.textLayout === "multiline";
+                const isManual = field.textLayoutSource === "manual";
+
+                return (
+                  <div key={fieldId} className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-gray-900">{field.fieldLabel ?? fieldId}</div>
+                        <div className="text-xs text-gray-500">
+                          {getTextLayoutLabel(field.textLayout)} · {field.estimatedLines ?? 1} linee stimate
+                          {isManual ? " · manuale" : " · auto"}
+                        </div>
+                      </div>
+                      <div
+                        className="w-4 h-4 rounded mt-1 shrink-0"
+                        style={{
+                          backgroundColor: isMultiline
+                            ? FIELD_COLORS.TextBoxMultiline.label
+                            : FIELD_COLORS.TextBox.label,
+                        }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onSetTextLayout(fieldId, "singleline")}
+                        disabled={!isMultiline && isManual}
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          !isMultiline ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Single
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSetTextLayout(fieldId, "multiline")}
+                        disabled={isMultiline && isManual}
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          isMultiline ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Multi
+                      </button>
+                    </div>
+
+                    {isManual && (
+                      <button
+                        type="button"
+                        onClick={() => onResetTextLayout(fieldId)}
+                        className="w-full px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      >
+                        Torna ad auto
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

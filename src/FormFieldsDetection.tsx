@@ -5,12 +5,13 @@ import * as pdfjsLib from "pdfjs-dist";
 import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
-import { drawDetections } from "./lib/drawDetections";
+import { drawDetections, type TextLayoutOverrides } from "./lib/drawDetections";
 import { ModelSelection, type ModelType, type ModelOption } from "./components/ModelSelection";
 import { DetectionResults, type ProcessingResult } from "./components/DetectionResults";
 import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
 import { StatusMessage, type Status } from "./components/StatusMessage";
+import { type TextLayout } from "./workers/inference.worker";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
@@ -46,6 +47,7 @@ export function FormFieldsDetection() {
     textBoxFontSize: 9,
   });
   const [rawDetectionResult, setRawDetectionResult] = useState<DetectionResult | null>(null);
+  const [textLayoutOverrides, setTextLayoutOverrides] = useState<TextLayoutOverrides>({});
   const [result, setResult] = useState<ProcessingResult | null>(null);
   const [status, setStatus] = useState<Status>({ type: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,7 +76,12 @@ export function FormFieldsDetection() {
   }, [revokeCurrentPdfObjectUrl]);
 
   const regenerateResultFromDetection = useCallback(
-    async (detectionResult: DetectionResult, selectedPdfFile: PdfFileState, textBoxFontSize: number) => {
+    async (
+      detectionResult: DetectionResult,
+      selectedPdfFile: PdfFileState,
+      textBoxFontSize: number,
+      currentTextLayoutOverrides: TextLayoutOverrides
+    ) => {
       if (!detectionResult.success) {
         return;
       }
@@ -91,6 +98,7 @@ export function FormFieldsDetection() {
         detectionResult,
         stripExistingAcroFields: selectedPdfFile.hasAcrofields,
         textBoxFontSize,
+        textLayoutOverrides: currentTextLayoutOverrides,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -119,6 +127,7 @@ export function FormFieldsDetection() {
 
       const detectionDataWithDrawings = drawDetections(detectionResult.data, {
         textBoxFontSize,
+        textLayoutOverrides: currentTextLayoutOverrides,
       });
 
       if (requestId !== regenerationRequestIdRef.current) {
@@ -148,8 +157,19 @@ export function FormFieldsDetection() {
       return;
     }
 
-    void regenerateResultFromDetection(rawDetectionResult, pdfFile, modelConfiguration.textBoxFontSize);
-  }, [pdfFile, rawDetectionResult, modelConfiguration.textBoxFontSize, regenerateResultFromDetection]);
+    void regenerateResultFromDetection(
+      rawDetectionResult,
+      pdfFile,
+      modelConfiguration.textBoxFontSize,
+      textLayoutOverrides
+    );
+  }, [
+    pdfFile,
+    rawDetectionResult,
+    modelConfiguration.textBoxFontSize,
+    textLayoutOverrides,
+    regenerateResultFromDetection,
+  ]);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -161,6 +181,7 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
+    setTextLayoutOverrides({});
 
     const validationResult = await ensureValidPDF(file);
 
@@ -220,6 +241,7 @@ export function FormFieldsDetection() {
 
     clearGeneratedResult();
     setRawDetectionResult(null);
+    setTextLayoutOverrides({});
 
     const detectionResult = await detectFormFields({
       pdfFile: pdfFile.file,
@@ -259,6 +281,21 @@ export function FormFieldsDetection() {
     setRawDetectionResult(detectionResult);
   };
 
+  const handleSetTextLayout = useCallback((fieldId: string, textLayout: TextLayout) => {
+    setTextLayoutOverrides((prev) => ({
+      ...prev,
+      [fieldId]: textLayout,
+    }));
+  }, []);
+
+  const handleResetTextLayout = useCallback((fieldId: string) => {
+    setTextLayoutOverrides((prev) => {
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 md:p-4">
       <div className="max-w-[96rem] mx-auto">
@@ -270,6 +307,7 @@ export function FormFieldsDetection() {
             onSelectModel={(model) => {
               clearGeneratedResult();
               setRawDetectionResult(null);
+              setTextLayoutOverrides({});
               setModelConfiguration((prev) => ({
                 ...prev,
                 selectedModel: model,
@@ -280,6 +318,7 @@ export function FormFieldsDetection() {
             onChangeConfidenceThreshold={(threshold) => {
               clearGeneratedResult();
               setRawDetectionResult(null);
+              setTextLayoutOverrides({});
               setModelConfiguration((prev) => ({
                 ...prev,
                 confidenceThreshold: threshold,
@@ -306,7 +345,11 @@ export function FormFieldsDetection() {
 
           <StatusMessage status={status} />
 
-          <DetectionResults result={result} />
+          <DetectionResults
+            result={result}
+            onSetTextLayout={handleSetTextLayout}
+            onResetTextLayout={handleResetTextLayout}
+          />
         </div>
       </div>
       <canvas ref={canvasRef} className="hidden" />

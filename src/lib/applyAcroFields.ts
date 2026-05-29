@@ -1,14 +1,13 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import type { DetectionResult } from "./formFieldDetection";
-import { getEstimatedLineCapacity } from "./drawDetections";
-
-const MULTILINE_MIN_LINES = 2;
+import { getEstimatedLineCapacity, getFieldId, MULTILINE_MIN_LINES, type TextLayoutOverrides } from "./drawDetections";
 
 interface ApplyAcroFieldsParameters {
   pdfFile: File;
   detectionResult: DetectionResult;
   stripExistingAcroFields: boolean;
   textBoxFontSize: number;
+  textLayoutOverrides: TextLayoutOverrides;
 }
 
 type ApplyAcroFieldsErrorCode =
@@ -30,7 +29,7 @@ const generateFieldName = (type: string, index: number): string => {
 };
 
 export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Promise<ApplyAcroFieldsResult> => {
-  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize } = parameters;
+  const { pdfFile, detectionResult, stripExistingAcroFields, textBoxFontSize, textLayoutOverrides } = parameters;
 
   if (!detectionResult.success) {
     return {
@@ -76,13 +75,15 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
         continue;
       }
 
-      for (const field of fields) {
+      for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+        const field = fields[fieldIndex];
         const fieldType = field.type;
         if (!fieldTypeCounters[fieldType]) {
           fieldTypeCounters[fieldType] = 0;
         }
-        const fieldIndex = fieldTypeCounters[fieldType]++;
-        const fieldName = generateFieldName(fieldType, fieldIndex);
+        const fieldTypeIndex = fieldTypeCounters[fieldType]++;
+        const fieldName = generateFieldName(fieldType, fieldTypeIndex);
+        const fieldId = getFieldId(pageIndex, fieldIndex);
 
         const [x, y, w, h] = field.bbox;
 
@@ -107,6 +108,8 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
           switch (fieldType) {
             case "TextBox": {
               const estimatedLines = getEstimatedLineCapacity(absoluteH, textBoxFontSize);
+              const autoTextLayout = estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline";
+              const textLayout = textLayoutOverrides[fieldId] ?? autoTextLayout;
               const textField = form.createTextField(fieldName);
               textField.addToPage(pdfPage, {
                 x: absoluteX,
@@ -117,7 +120,7 @@ export const applyAcroFields = async (parameters: ApplyAcroFieldsParameters): Pr
                 textColor: rgb(0, 0, 0),
               });
               textField.setFontSize(textBoxFontSize);
-              if (estimatedLines >= MULTILINE_MIN_LINES) {
+              if (textLayout === "multiline") {
                 textField.enableMultiline();
               }
               const acroField = textField.acroField;

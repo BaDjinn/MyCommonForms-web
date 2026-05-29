@@ -1,9 +1,11 @@
-import { type DetectedField, type FieldType } from "../workers/inference.worker";
+import { type DetectedField, type FieldType, type TextLayout } from "../workers/inference.worker";
 
 export interface FieldColors {
   background: string;
   label: string;
 }
+
+export type TextLayoutOverrides = Record<string, TextLayout>;
 
 type DrawableFieldKind = FieldType | "TextBoxMultiline";
 
@@ -33,7 +35,7 @@ const LABEL_PADDING_X = 3;
 const LABEL_PADDING_Y = 3;
 const TEXTBOX_VERTICAL_PADDING_RATIO = 0.5;
 const TEXTBOX_LINE_GAP_RATIO = 0.5;
-const MULTILINE_MIN_LINES = 2;
+export const MULTILINE_MIN_LINES = 2;
 
 interface PdfMetadata {
   originalWidth: number;
@@ -45,7 +47,12 @@ interface PdfMetadata {
 
 interface DrawDetectionsOptions {
   textBoxFontSize: number;
+  textLayoutOverrides: TextLayoutOverrides;
 }
+
+export const getFieldId = (pageIndex: number, fieldIndex: number): string => {
+  return `page-${pageIndex + 1}-field-${fieldIndex + 1}`;
+};
 
 export const getEstimatedLineCapacity = (fieldHeight: number, fontSize: number): number => {
   const verticalPadding = fontSize * TEXTBOX_VERTICAL_PADDING_RATIO;
@@ -67,23 +74,40 @@ const getPdfFieldHeight = (field: DetectedField, pdfMetadata: PdfMetadata): numb
   return (canvasHeight / (canvasSize - 2 * offsetY)) * originalHeight;
 };
 
-const addTextLayoutMetadata = (
+export const addTextLayoutMetadata = (
   fields: DetectedField[],
+  pageIndex: number,
   pdfMetadata: PdfMetadata,
-  textBoxFontSize: number
+  textBoxFontSize: number,
+  textLayoutOverrides: TextLayoutOverrides
 ): DetectedField[] => {
-  return fields.map((field) => {
+  let textBoxCounter = 0;
+
+  return fields.map((field, fieldIndex) => {
+    const fieldId = getFieldId(pageIndex, fieldIndex);
+
     if (field.type !== "TextBox") {
-      return field;
+      return {
+        ...field,
+        fieldId,
+      };
     }
+
+    textBoxCounter += 1;
 
     const pdfFieldHeight = getPdfFieldHeight(field, pdfMetadata);
     const estimatedLines = getEstimatedLineCapacity(pdfFieldHeight, textBoxFontSize);
+    const autoTextLayout: TextLayout = estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline";
+    const manualTextLayout = textLayoutOverrides[fieldId];
+    const textLayout = manualTextLayout ?? autoTextLayout;
 
     return {
       ...field,
+      fieldId,
+      fieldLabel: `T${textBoxCounter}`,
       estimatedLines,
-      textLayout: estimatedLines >= MULTILINE_MIN_LINES ? "multiline" : "singleline",
+      textLayout,
+      textLayoutSource: manualTextLayout ? "manual" : "auto",
     };
   });
 };
@@ -97,12 +121,14 @@ const getFieldColors = (field: DetectedField): FieldColors => {
 };
 
 const getFieldLabel = (field: DetectedField): string => {
+  const manualSuffix = field.textLayoutSource === "manual" ? " manual" : "";
+
   if (field.type === "TextBox" && field.textLayout === "multiline") {
-    return `TextBox multiline (${field.estimatedLines ?? 2}L)`;
+    return `${field.fieldLabel ?? "TextBox"} multiline (${field.estimatedLines ?? 2}L)${manualSuffix}`;
   }
 
   if (field.type === "TextBox") {
-    return "TextBox singleline";
+    return `${field.fieldLabel ?? "TextBox"} singleline${manualSuffix}`;
   }
 
   return field.type;
@@ -168,8 +194,14 @@ export const drawDetections = (
   detectionData: DetectionDataInput,
   options: DrawDetectionsOptions
 ): DetectionDataOutput => {
-  const pagesWithDrawings = detectionData.pages.map((page) => {
-    const fieldsWithLayout = addTextLayoutMetadata(page.fields, page.pdfMetadata, options.textBoxFontSize);
+  const pagesWithDrawings = detectionData.pages.map((page, pageIndex) => {
+    const fieldsWithLayout = addTextLayoutMetadata(
+      page.fields,
+      pageIndex,
+      page.pdfMetadata,
+      options.textBoxFontSize,
+      options.textLayoutOverrides
+    );
 
     const canvas = document.createElement("canvas");
     canvas.width = page.imageData.width;
