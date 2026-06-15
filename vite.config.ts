@@ -22,4 +22,10 @@ export default defineConfig({
   },
   assetsInclude: ["**/*.onnx"],
   server: {},
+  build: {
+		target: "esnext",
+		sourcemap: true,
+		cssMinify: true,
+		minify: "oxc",
+	},
 });
