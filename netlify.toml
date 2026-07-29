@@ -1,0 +1,5 @@
+[build]
+  publish = "dist"
+[[edge_functions]]
+  function = "github-auth"
+  path = "/*"

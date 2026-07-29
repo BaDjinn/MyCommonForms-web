@@ -12,108 +12,83 @@ import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
 import { StatusMessage, type Status } from "./components/StatusMessage";
 import { type FieldKind } from "./workers/inference.worker";
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-
 //ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
-
 const MODEL_URLS: Record<ModelType, string> = {
   "FFDNet-S": "https://us-beautiful-space.nyc3.cdn.digitaloceanspaces.com/commonforms/FFDNet-S.onnx",
   "FFDNet-L": "https://huggingface.co/jbarrow/FFDNet-L-cpu/resolve/main/FFDNet-L.onnx",
 };
-
 const AVAILABLE_MODELS: ModelOption[] = [
   { value: "FFDNet-S", label: "FFDNet-S (faster)" },
   { value: "FFDNet-L", label: "FFDNet-L (more accurate)" },
 ];
-
 const CANDIDATE_CONFIDENCE_THRESHOLD = 0.05;
 const MIN_RECOMMENDED_THRESHOLD = 0.08;
 const MAX_RECOMMENDED_THRESHOLD = 0.35;
 const MIN_RECOMMENDED_GAP = 0.08;
-
 interface ModelConfiguration {
   selectedModel: ModelType;
   confidenceThreshold: number;
   textBoxFontSize: number;
 }
-
 interface PdfFileState {
   file: File;
   hasAcrofields: boolean;
 }
-
 const getExecutionProviderBadgeClass = (executionProvider: string): string => {
   if (executionProvider.includes("WebNN")) {
     return "bg-emerald-100 text-emerald-800 border-emerald-300";
   }
-
   if (executionProvider.includes("WebGPU")) {
     return "bg-blue-100 text-blue-800 border-blue-300";
   }
-
   if (executionProvider.includes("WASM")) {
     return "bg-amber-100 text-amber-800 border-amber-300";
   }
-
   return "bg-gray-100 text-gray-800 border-gray-300";
 };
-
 const roundThreshold = (value: number): number => {
   return Math.round(value * 100) / 100;
 };
-
 const clampRecommendedThreshold = (value: number): number => {
   return Math.min(MAX_RECOMMENDED_THRESHOLD, Math.max(MIN_RECOMMENDED_THRESHOLD, value));
 };
-
 const getAllConfidenceScores = (detectionResult: DetectionResult): number[] => {
   if (!detectionResult.success) {
     return [];
   }
-
   return detectionResult.data.pages.flatMap((page) => page.fields.map((field) => field.confidence));
 };
-
 const calculateRecommendedConfidenceThreshold = (detectionResult: DetectionResult): number | null => {
   const confidenceScores = getAllConfidenceScores(detectionResult)
     .filter((confidence) => Number.isFinite(confidence))
     .sort((a, b) => b - a);
-
   if (confidenceScores.length < 4) {
     return null;
   }
-
   let bestGap = 0;
   let bestThreshold: number | null = null;
-
   for (let index = 0; index < confidenceScores.length - 1; index++) {
     const upperConfidence = confidenceScores[index];
     const lowerConfidence = confidenceScores[index + 1];
     const gap = upperConfidence - lowerConfidence;
     const midpoint = (upperConfidence + lowerConfidence) / 2;
-
     if (midpoint < MIN_RECOMMENDED_THRESHOLD || midpoint > MAX_RECOMMENDED_THRESHOLD) {
       continue;
     }
-
     if (gap > bestGap) {
       bestGap = gap;
       bestThreshold = midpoint;
     }
   }
-
   if (bestThreshold !== null && bestGap >= MIN_RECOMMENDED_GAP) {
     return roundThreshold(clampRecommendedThreshold(bestThreshold));
   }
-
   const sortedAscending = [...confidenceScores].sort((a, b) => a - b);
   const lowerQuartileIndex = Math.floor(sortedAscending.length * 0.25);
   const fallbackThreshold = sortedAscending[lowerQuartileIndex] ?? CANDIDATE_CONFIDENCE_THRESHOLD;
-
   return roundThreshold(clampRecommendedThreshold(fallbackThreshold));
 };
-
 export function FormFieldsDetection() {
   const { t } = useTranslation();
   const [pdfFile, setPdfFile] = useState<PdfFileState | null>(null);
@@ -132,27 +107,23 @@ export function FormFieldsDetection() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfObjectUrlRef = useRef<string | null>(null);
   const regenerationRequestIdRef = useRef(0);
-
   const revokeCurrentPdfObjectUrl = useCallback(() => {
     if (pdfObjectUrlRef.current) {
       URL.revokeObjectURL(pdfObjectUrlRef.current);
       pdfObjectUrlRef.current = null;
     }
   }, []);
-
   const clearGeneratedResult = useCallback(() => {
     regenerationRequestIdRef.current += 1;
     revokeCurrentPdfObjectUrl();
     setResult(null);
     setStatus({ type: "idle" });
   }, [revokeCurrentPdfObjectUrl]);
-
   useEffect(() => {
     return () => {
       revokeCurrentPdfObjectUrl();
     };
   }, [revokeCurrentPdfObjectUrl]);
-
   const regenerateResultFromDetection = useCallback(
     async (
       detectionResult: DetectionResult,
@@ -164,14 +135,11 @@ export function FormFieldsDetection() {
       if (!detectionResult.success) {
         return;
       }
-
       const requestId = ++regenerationRequestIdRef.current;
-
       setStatus({
         type: "loading",
         message: t("statusMessages.applyingAcroFields"),
       });
-
       const acroFieldsResult = await applyAcroFields({
         pdfFile: selectedPdfFile.file,
         detectionResult,
@@ -180,11 +148,9 @@ export function FormFieldsDetection() {
         fieldOverrides: currentFieldOverrides,
         confidenceThreshold,
       });
-
       if (requestId !== regenerationRequestIdRef.current) {
         return;
       }
-
       if (!acroFieldsResult.success) {
         setStatus({
           type: "error",
@@ -194,31 +160,24 @@ export function FormFieldsDetection() {
         });
         return;
       }
-
       const pdfBytes = acroFieldsResult.data.pdfBytes;
       const pdfArrayBuffer = new ArrayBuffer(pdfBytes.byteLength);
       new Uint8Array(pdfArrayBuffer).set(pdfBytes);
-
       const pdfBlob = new Blob([pdfArrayBuffer], {
         type: "application/pdf",
       });
-
       const pdfWithAcroFieldsBlobUrl = URL.createObjectURL(pdfBlob);
-
       const detectionDataWithDrawings = drawDetections(detectionResult.data, {
         textBoxFontSize,
         fieldOverrides: currentFieldOverrides,
         confidenceThreshold,
       });
-
       if (requestId !== regenerationRequestIdRef.current) {
         URL.revokeObjectURL(pdfWithAcroFieldsBlobUrl);
         return;
       }
-
       revokeCurrentPdfObjectUrl();
       pdfObjectUrlRef.current = pdfWithAcroFieldsBlobUrl;
-
       setResult({
         pages: detectionDataWithDrawings.pages,
         processingTime: detectionResult.data.processingTime,
@@ -227,17 +186,14 @@ export function FormFieldsDetection() {
         confidenceThreshold,
         textBoxFontSize,
       });
-
       setStatus({ type: "idle" });
     },
     [revokeCurrentPdfObjectUrl, t]
   );
-
   useEffect(() => {
     if (!pdfFile || !rawDetectionResult?.success) {
       return;
     }
-
     void regenerateResultFromDetection(
       rawDetectionResult,
       pdfFile,
@@ -253,26 +209,23 @@ export function FormFieldsDetection() {
     fieldOverrides,
     regenerateResultFromDetection,
   ]);
-
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-
     if (!file || file.type !== "application/pdf") {
-      setStatus({ type: "error", message: t("errors.invalidPdfFile") });
+      setStatus({
+        type: "error",
+        message: t("errors.invalidPdfFile"),
+      });
       return;
     }
-
     clearGeneratedResult();
     setRawDetectionResult(null);
     setFieldOverrides({});
     setExecutionProvider(null);
     setRecommendedConfidenceThreshold(null);
-
     const validationResult = await ensureValidPDF(file);
-
     if (!validationResult.success) {
       const errorCode = validationResult.error.code;
-
       if (errorCode === "pdf_encrypted_or_malformed") {
         setStatus({
           type: "error",
@@ -301,12 +254,10 @@ export function FormFieldsDetection() {
       }
       return;
     }
-
     setPdfFile({
       file,
       hasAcrofields: validationResult.data.warning?.code === "pdf_has_acrofields",
     });
-
     if (validationResult.data.warning) {
       setStatus({
         type: "warning",
@@ -318,18 +269,15 @@ export function FormFieldsDetection() {
       setStatus({ type: "idle" });
     }
   };
-
   const handleDetectFormFields = async () => {
     if (!pdfFile) {
       return;
     }
-
     clearGeneratedResult();
     setRawDetectionResult(null);
     setFieldOverrides({});
     setExecutionProvider(null);
     setRecommendedConfidenceThreshold(null);
-
     const detectionResult = await detectFormFields({
       pdfFile: pdfFile.file,
       modelPath: MODEL_URLS[modelConfiguration.selectedModel],
@@ -352,11 +300,12 @@ export function FormFieldsDetection() {
               });
           }
         })();
-
-        setStatus({ type: "loading", message: translatedMessage });
+        setStatus({
+          type: "loading",
+          message: translatedMessage,
+        });
       },
     });
-
     if (!detectionResult.success) {
       setStatus({
         type: "error",
@@ -366,11 +315,9 @@ export function FormFieldsDetection() {
       });
       return;
     }
-
     setRecommendedConfidenceThreshold(calculateRecommendedConfidenceThreshold(detectionResult));
     setRawDetectionResult(detectionResult);
   };
-
   const handleSetFieldEnabled = useCallback((fieldId: string, enabled: boolean) => {
     setFieldOverrides((prev) => ({
       ...prev,
@@ -380,7 +327,6 @@ export function FormFieldsDetection() {
       },
     }));
   }, []);
-
   const handleSetFieldKind = useCallback((fieldId: string, fieldKind: FieldKind) => {
     setFieldOverrides((prev) => ({
       ...prev,
@@ -390,10 +336,8 @@ export function FormFieldsDetection() {
       },
     }));
   }, []);
-
   const handleSetFieldName = useCallback((fieldId: string, rawFieldName: string) => {
     const fieldName = sanitizeFieldName(rawFieldName);
-
     setFieldOverrides((prev) => ({
       ...prev,
       [fieldId]: {
@@ -402,20 +346,17 @@ export function FormFieldsDetection() {
       },
     }));
   }, []);
-
   const handleUseRecommendedConfidenceThreshold = useCallback((confidenceThreshold: number) => {
     setModelConfiguration((prev) => ({
       ...prev,
       confidenceThreshold,
     }));
   }, []);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 md:p-4">
-      <div className="max-w-[96rem] mx-auto">
-        <div className="bg-white rounded-lg shadow-xl p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-950 p-3 text-slate-200 md:p-6">
+      <div className="mx-auto max-w-[96rem]">
+        <main className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-2xl shadow-black/30 md:p-6 lg:p-8">
           <Header />
-
           <ModelSelection
             selectedModel={modelConfiguration.selectedModel}
             onSelectModel={(model) => {
@@ -447,7 +388,6 @@ export function FormFieldsDetection() {
               }))
             }
           />
-
           {executionProvider && (
             <div className="mb-6 flex flex-wrap gap-2">
               <span
@@ -459,7 +399,6 @@ export function FormFieldsDetection() {
               </span>
             </div>
           )}
-
           <ProcessingSteps
             pdfFile={pdfFile?.file ?? null}
             isProcessing={status.type === "loading"}
@@ -469,16 +408,14 @@ export function FormFieldsDetection() {
             onFileSelect={handleFileSelect}
             onDetect={handleDetectFormFields}
           />
-
           <StatusMessage status={status} />
-
           <DetectionResults
             result={result}
             onSetFieldEnabled={handleSetFieldEnabled}
             onSetFieldKind={handleSetFieldKind}
             onSetFieldName={handleSetFieldName}
           />
-        </div>
+        </main>
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>
