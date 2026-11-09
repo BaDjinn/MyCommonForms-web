@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Detecção de campos de formulário PDF baseada em navegador",
-    "subtitle": "Detecte automaticamente campos de formulário em PDFs com CommonForms usando ONNX Runtime Web",
-    "privacyFriendly": "Amigável à privacidade",
-    "runsInBrowser": "Executa no navegador",
-    "aboutCommonForms": "Sobre o CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> por <1>Joe Barrow</1> utiliza modelos FFDNet treinados em um grande conjunto de dados de formulários para detectar automaticamente caixas de texto, caixas de seleção e campos de assinatura em documentos PDF.",
-    "howItWorks": "Como funciona",
-    "howItWorksBullet1": "Detecção baseada em YOLO com <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Detecta e adiciona os acrofields PDF relevantes",
-    "howItWorksBullet3": "Executa inteiramente no navegador",
-    "howItWorksBullet4": "Preencher ou baixar o PDF resultante",
-    "arxivPaper": "Artigo arXiv"
-  },
   "modelSelection": {
     "selectModel": "Selecionar modelo:",
     "confidenceThreshold": "Limite de confiança:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Este PDF já contém {{count}} campo preenchível. Se você continuar, ele será substituído pelos campos recém-detectados.",
     "pdfHasAcrofields_other": "Este PDF já contém {{count}} campos preenchíveis. Se você continuar, eles serão substituídos pelos campos recém-detectados."
+  },
+  "settings": {
+    "title": "Definições",
+    "appearance": "Aparência",
+    "language": "Idioma",
+    "processing": "Processamento",
+    "model": "Modelo predefinido",
+    "fast": "Rápido",
+    "accurate": "Mais preciso",
+    "modelWarning": "Alterar o modelo requer uma nova deteção.",
+    "pdf": "PDF",
+    "fontSize": "Tamanho de texto predefinido",
+    "about": "Sobre",
+    "logout": "Terminar sessão",
+    "useRecommended": "Usar {{value}}",
+    "recommended": "Limiar recomendado: {{value}}"
   }
 }

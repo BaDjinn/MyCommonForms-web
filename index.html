@@ -2,51 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/src/public/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/src/public/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/src/public/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/src/public/apple-touch-icon.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/src/public/android-chrome-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/src/public/android-chrome-512x512.png" />
-    <link rel="manifest" href="/src/public/manifest.webmanifest" />
-    <meta name="theme-color" content="#020617" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LocalForm — Local PDF form field detection</title>
-    <meta
-      name="description"
-      content="Detect and add form fields to PDFs locally in your browser. Documents are not uploaded to a server."
-    />
+    <meta name="theme-color" content="#020617" />
+    <link rel="icon" type="image/svg+xml" href="/icons/localform.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>LocalForm</title>
+    <meta name="description" content="Create fillable PDFs locally in your browser. Documents are processed on your device." />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="LocalForm — Local PDF form field detection" />
-    <meta property="og:description" content="Detect and add form fields to PDFs locally in your browser." />
-    <meta
-      property="og:image"
-      content="https://cdn.simplepdf.com/simple-pdf/assets/meta/meta-commonforms-simplepdf.png"
-    />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LocalForm — Local PDF form field detection" />
-    <meta name="twitter:description" content="Detect and add form fields to PDFs locally in your browser." />
-    <meta
-      name="twitter:image"
-      content="https://cdn.simplepdf.com/simple-pdf/assets/meta/meta-commonforms-simplepdf.png"
-    />
-    <meta
-      name="keywords"
-      content="LocalForm, PDF form fields, ONNX Runtime, local AI, form field detection, browser PDF"
-    />
-    <!-- Prefetch models for faster loading (especially the L one) -->
-    <link
-      rel="prefetch"
-      href="https://us-beautiful-space.nyc3.cdn.digitaloceanspaces.com/commonforms/FFDNet-S.onnx"
-      as="fetch"
-      crossorigin="anonymous"
-    />
-    <link
-      rel="prefetch"
-      href="https://huggingface.co/jbarrow/FFDNet-L-cpu/resolve/main/FFDNet-L.onnx"
-      as="fetch"
-      crossorigin="anonymous"
-    />
+    <meta property="og:title" content="LocalForm" />
+    <meta property="og:description" content="Create fillable PDF forms directly in your browser." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="LocalForm" />
+    <meta name="twitter:description" content="Create fillable PDF forms directly in your browser." />
   </head>
   <body>
     <div id="root"></div>

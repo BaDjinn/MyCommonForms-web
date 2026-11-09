@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Detección de campos de formularios PDF basada en navegador",
-    "subtitle": "Detecta automáticamente campos de formularios en PDFs con CommonForms usando ONNX Runtime Web",
-    "privacyFriendly": "Respetuoso con la privacidad",
-    "runsInBrowser": "Funciona en el navegador",
-    "aboutCommonForms": "Acerca de CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> de <1>Joe Barrow</1> utiliza modelos FFDNet entrenados en un amplio conjunto de datos de formularios para detectar automáticamente cuadros de texto, casillas de verificación y campos de firma en documentos PDF.",
-    "howItWorks": "Cómo funciona",
-    "howItWorksBullet1": "Detección basada en YOLO con <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Detecta y añade los campos acrofields PDF relevantes",
-    "howItWorksBullet3": "Funciona completamente en el navegador",
-    "howItWorksBullet4": "Rellena o descarga el PDF resultante",
-    "arxivPaper": "Artículo arXiv"
-  },
   "modelSelection": {
     "selectModel": "Seleccionar modelo:",
     "confidenceThreshold": "Umbral de confianza:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Este PDF ya contiene {{count}} campo rellenable. Si continúas, será reemplazado por los campos recién detectados.",
     "pdfHasAcrofields_other": "Este PDF ya contiene {{count}} campos rellenables. Si continúas, serán reemplazados por los campos recién detectados."
+  },
+  "settings": {
+    "title": "Configuración",
+    "appearance": "Apariencia",
+    "language": "Idioma",
+    "processing": "Procesamiento",
+    "model": "Modelo predeterminado",
+    "fast": "Rápido",
+    "accurate": "Más preciso",
+    "modelWarning": "Cambiar de modelo requiere un nuevo análisis.",
+    "pdf": "PDF",
+    "fontSize": "Tamaño de texto predeterminado",
+    "about": "Acerca de",
+    "logout": "Cerrar sesión",
+    "useRecommended": "Usar {{value}}",
+    "recommended": "Umbral recomendado: {{value}}"
   }
 }

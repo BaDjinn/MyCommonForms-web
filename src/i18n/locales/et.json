@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Brauserpõhine PDF-vormiväljade tuvastamine",
-    "subtitle": "Tuvastuslikus automaatselt vormivälju PDF-failides CommonForms abil kasutades ONNX Runtime Web",
-    "privacyFriendly": "Privaatsussõbralik",
-    "runsInBrowser": "Töötab brauseris",
-    "aboutCommonForms": "CommonFormsi kohta",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> autor <1>Joe Barrow</1> kasutab FFDNet mudeleid, mis on treenitud laialdase vormide andmekogumi põhjal, et automaatselt tuvastada tekstikaste, märkeruute ja allkirjavälju PDF-dokumentides.",
-    "howItWorks": "Kuidas see toimib",
-    "howItWorksBullet1": "YOLO-põhine tuvastus <0>ONNX Runtime</0> abil",
-    "howItWorksBullet2": "Tuvastab ja lisab asjakohased PDF acrofield väljad",
-    "howItWorksBullet3": "Töötab täielikult brauseris",
-    "howItWorksBullet4": "Täida või laadi alla tulemuseks olev PDF",
-    "arxivPaper": "arXiv artikkel"
-  },
   "modelSelection": {
     "selectModel": "Vali mudel:",
     "confidenceThreshold": "Kindluse lävi:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "See PDF sisaldab juba {{count}} täidetavat välja. Kui jätkad, asendatakse see äsja tuvastatud väljadega.",
     "pdfHasAcrofields_other": "See PDF sisaldab juba {{count}} täidetavat välja. Kui jätkad, asendatakse need äsja tuvastatud väljadega."
+  },
+  "settings": {
+    "title": "Seaded",
+    "appearance": "Välimus",
+    "language": "Keel",
+    "processing": "Töötlemine",
+    "model": "Vaikimisi mudel",
+    "fast": "Kiire",
+    "accurate": "Täpsem",
+    "modelWarning": "Mudeli muutmine nõuab uut tuvastust.",
+    "pdf": "PDF",
+    "fontSize": "Vaikimisi teksti suurus",
+    "about": "Teave",
+    "logout": "Logi välja",
+    "useRecommended": "Kasuta {{value}}",
+    "recommended": "Soovitatud lävi: {{value}}"
   }
 }

@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Détection de champs de formulaire PDF dans le navigateur",
-    "subtitle": "Détectez automatiquement les champs de formulaire dans les PDF avec CommonForms en utilisant ONNX Runtime Web",
-    "privacyFriendly": "Respectueux de la vie privée",
-    "runsInBrowser": "Fonctionne dans le navigateur",
-    "aboutCommonForms": "À propos de CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> par <1>Joe Barrow</1> utilise des modèles FFDNet entraînés sur un large ensemble de données de formulaires pour détecter automatiquement les zones de texte, les cases à cocher et les champs de signature dans les documents PDF.",
-    "howItWorks": "Comment ça marche",
-    "howItWorksBullet1": "Détection basée sur YOLO avec <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Détecte et ajoute les acrofields PDF pertinents",
-    "howItWorksBullet3": "Fonctionne entièrement dans le navigateur",
-    "howItWorksBullet4": "Remplir ou télécharger le PDF résultant",
-    "arxivPaper": "Article arXiv"
-  },
   "modelSelection": {
     "selectModel": "Sélectionner le modèle :",
     "confidenceThreshold": "Seuil de confiance :",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Ce PDF contient déjà {{count}} champ remplissable. Si vous continuez, il sera remplacé par les champs nouvellement détectés.",
     "pdfHasAcrofields_other": "Ce PDF contient déjà {{count}} champs remplissables. Si vous continuez, ils seront remplacés par les champs nouvellement détectés."
+  },
+  "settings": {
+    "title": "Paramètres",
+    "appearance": "Apparence",
+    "language": "Langue",
+    "processing": "Traitement",
+    "model": "Modèle par défaut",
+    "fast": "Rapide",
+    "accurate": "Plus précis",
+    "modelWarning": "Changer de modèle nécessite une nouvelle détection.",
+    "pdf": "PDF",
+    "fontSize": "Taille de texte par défaut",
+    "about": "À propos",
+    "logout": "Se déconnecter",
+    "useRecommended": "Utiliser {{value}}",
+    "recommended": "Seuil recommandé : {{value}}"
   }
 }

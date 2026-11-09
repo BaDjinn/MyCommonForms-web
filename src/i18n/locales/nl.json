@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Browsergebaseerde PDF-formuliervelddetectie",
-    "subtitle": "Detecteer automatisch formuliervelden in PDF's met CommonForms met behulp van ONNX Runtime Web",
-    "privacyFriendly": "Privacyvriendelijk",
-    "runsInBrowser": "Werkt in de browser",
-    "aboutCommonForms": "Over CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> door <1>Joe Barrow</1> gebruikt FFDNet-modellen die zijn getraind op een grote dataset van formulieren om automatisch tekstvakken, selectievakjes en handtekeningvelden in PDF-documenten te detecteren.",
-    "howItWorks": "Hoe het werkt",
-    "howItWorksBullet1": "YOLO-gebaseerde detectie met <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Detecteert en voegt relevante PDF acrofields toe",
-    "howItWorksBullet3": "Werkt volledig in de browser",
-    "howItWorksBullet4": "Vul de resulterende PDF in of download deze",
-    "arxivPaper": "arXiv artikel"
-  },
   "modelSelection": {
     "selectModel": "Selecteer model:",
     "confidenceThreshold": "Vertrouwensdrempel:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Deze PDF bevat al {{count}} invulbaar veld. Als u doorgaat, wordt dit vervangen door de nieuw gedetecteerde velden.",
     "pdfHasAcrofields_other": "Deze PDF bevat al {{count}} invulbare velden. Als u doorgaat, worden deze vervangen door de nieuw gedetecteerde velden."
+  },
+  "settings": {
+    "title": "Instellingen",
+    "appearance": "Uiterlijk",
+    "language": "Taal",
+    "processing": "Verwerking",
+    "model": "Standaardmodel",
+    "fast": "Snel",
+    "accurate": "Nauwkeuriger",
+    "modelWarning": "Een ander model vereist een nieuwe detectie.",
+    "pdf": "PDF",
+    "fontSize": "Standaardtekstgrootte",
+    "about": "Over",
+    "logout": "Afmelden",
+    "useRecommended": "Gebruik {{value}}",
+    "recommended": "Aanbevolen drempel: {{value}}"
   }
 }

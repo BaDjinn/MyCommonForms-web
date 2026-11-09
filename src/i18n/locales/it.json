@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Rilevamento dei campi dei moduli PDF basato su browser",
-    "subtitle": "Rileva automaticamente i campi dei moduli nei PDF con CommonForms utilizzando ONNX Runtime Web",
-    "privacyFriendly": "Rispettoso della privacy",
-    "runsInBrowser": "Funziona nel browser",
-    "aboutCommonForms": "Informazioni su CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> di <1>Joe Barrow</1> utilizza modelli FFDNet addestrati su un ampio set di dati di moduli per rilevare automaticamente caselle di testo, caselle di controllo e campi per la firma nei documenti PDF.",
-    "howItWorks": "Come funziona",
-    "howItWorksBullet1": "Rilevamento basato su YOLO con <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Rileva e aggiunge i campi acrofields PDF pertinenti",
-    "howItWorksBullet3": "Funziona interamente nel browser",
-    "howItWorksBullet4": "Compilare o scaricare il PDF risultante",
-    "arxivPaper": "Articolo arXiv"
-  },
   "modelSelection": {
     "selectModel": "Seleziona modello:",
     "confidenceThreshold": "Soglia di confidenza:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Questo PDF contiene già {{count}} campo compilabile. Se procedi, verrà sostituito con i campi appena rilevati.",
     "pdfHasAcrofields_other": "Questo PDF contiene già {{count}} campi compilabili. Se procedi, verranno sostituiti con i campi appena rilevati."
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "appearance": "Aspetto",
+    "language": "Lingua",
+    "processing": "Elaborazione",
+    "model": "Modello predefinito",
+    "fast": "Veloce",
+    "accurate": "Più accurato",
+    "modelWarning": "Cambiare modello richiede una nuova analisi.",
+    "pdf": "PDF",
+    "fontSize": "Dimensione testo predefinita",
+    "about": "Informazioni",
+    "logout": "Esci",
+    "useRecommended": "Usa {{value}}",
+    "recommended": "Soglia suggerita: {{value}}"
   }
 }

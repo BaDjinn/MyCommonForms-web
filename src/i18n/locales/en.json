@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Browser-based PDF form fields detection",
-    "subtitle": "Automatically detect form fields in PDFs with CommonForms using ONNX Runtime Web",
-    "privacyFriendly": "Privacy-friendly",
-    "runsInBrowser": "Runs in Browser",
-    "aboutCommonForms": "About CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> by <1>Joe Barrow</1> uses FFDNet models trained on a large dataset of forms to automatically detect text boxes, checkboxes, and signature fields in PDF documents.",
-    "howItWorks": "How it works",
-    "howItWorksBullet1": "YOLO-based detection with <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Detect and add the relevant PDF acrofields",
-    "howItWorksBullet3": "Runs entirely in the browser",
-    "howItWorksBullet4": "Fill or download or the resulting PDF",
-    "arxivPaper": "arXiv paper"
-  },
   "modelSelection": {
     "selectModel": "Select Model:",
     "confidenceThreshold": "Confidence Threshold:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "This PDF already contains {{count}} fillable field. If you proceed, these will be replaced with the newly detected fields.",
     "pdfHasAcrofields_other": "This PDF already contains {{count}} fillable fields. If you proceed, these will be replaced with the newly detected fields."
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "language": "Language",
+    "processing": "Processing",
+    "model": "Default model",
+    "fast": "Fast",
+    "accurate": "More accurate",
+    "modelWarning": "Changing models requires a new detection.",
+    "pdf": "PDF",
+    "fontSize": "Default text size",
+    "about": "About",
+    "logout": "Sign out",
+    "useRecommended": "Use {{value}}",
+    "recommended": "Recommended threshold: {{value}}"
   }
 }
