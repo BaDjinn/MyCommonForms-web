@@ -25,7 +25,8 @@ export const SUPPORTED_LANGUAGES = {
 
 export type SupportedLanguage = keyof typeof SUPPORTED_LANGUAGES;
 
-const STORAGE_KEY = "commonforms-language";
+const STORAGE_KEY = "localform.language.v1";
+const LEGACY_STORAGE_KEY = "commonforms-language";
 
 const getBrowserLanguage = (): SupportedLanguage => {
   const browserLang = navigator.language.split("-")[0];
@@ -33,9 +34,14 @@ const getBrowserLanguage = (): SupportedLanguage => {
 };
 
 const getStoredLanguage = (): SupportedLanguage | null => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && Object.keys(SUPPORTED_LANGUAGES).includes(stored)) {
-    return stored as SupportedLanguage;
+  try {
+    // Preserve the previous preference after the LocalForm rebranding.
+    const stored = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (stored && Object.keys(SUPPORTED_LANGUAGES).includes(stored)) {
+      return stored as SupportedLanguage;
+    }
+  } catch {
+    // The browser may block access to localStorage.
   }
   return null;
 };
@@ -62,7 +68,11 @@ i18n.use(initReactI18next).init({
 });
 
 i18n.on("languageChanged", (lng: string) => {
-  localStorage.setItem(STORAGE_KEY, lng);
+  try {
+    localStorage.setItem(STORAGE_KEY, lng);
+  } catch {
+    // Language selection remains usable when localStorage is unavailable.
+  }
 });
 
 export default i18n;
