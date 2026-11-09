@@ -6,7 +6,8 @@ import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
 import { drawDetections, sanitizeFieldName, type FieldOverrides } from "./lib/drawDetections";
-import { ModelSelection, type ModelType, type ModelOption } from "./components/ModelSelection";
+import { ConfidenceControl } from "./components/ConfidenceControl";
+import { MODEL_URLS, readModelPreference, readFontSizePreference, saveModelPreference, saveFontSizePreference, type ModelType } from "./lib/modelConfig";
 import { DetectionResults, type ProcessingResult } from "./components/DetectionResults";
 import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
@@ -14,14 +15,6 @@ import { StatusMessage, type Status } from "./components/StatusMessage";
 import { type FieldKind } from "./workers/inference.worker";
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 //ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
-const MODEL_URLS: Record<ModelType, string> = {
-  "FFDNet-S": "https://us-beautiful-space.nyc3.cdn.digitaloceanspaces.com/commonforms/FFDNet-S.onnx",
-  "FFDNet-L": "https://huggingface.co/jbarrow/FFDNet-L-cpu/resolve/main/FFDNet-L.onnx",
-};
-const AVAILABLE_MODELS: ModelOption[] = [
-  { value: "FFDNet-S", label: "FFDNet-S (faster)" },
-  { value: "FFDNet-L", label: "FFDNet-L (more accurate)" },
-];
 const CANDIDATE_CONFIDENCE_THRESHOLD = 0.05;
 const MIN_RECOMMENDED_THRESHOLD = 0.08;
 const MAX_RECOMMENDED_THRESHOLD = 0.35;
@@ -93,9 +86,9 @@ export function FormFieldsDetection() {
   const { t } = useTranslation();
   const [pdfFile, setPdfFile] = useState<PdfFileState | null>(null);
   const [modelConfiguration, setModelConfiguration] = useState<ModelConfiguration>({
-    selectedModel: "FFDNet-S",
+    selectedModel: readModelPreference(),
     confidenceThreshold: 0.25,
-    textBoxFontSize: 9,
+    textBoxFontSize: readFontSizePreference(),
   });
   const [rawDetectionResult, setRawDetectionResult] = useState<DetectionResult | null>(null);
   const [fieldOverrides, setFieldOverrides] = useState<FieldOverrides>({});
@@ -356,37 +349,32 @@ export function FormFieldsDetection() {
     <div className="min-h-screen bg-slate-950 p-3 text-slate-200 md:p-6">
       <div className="mx-auto max-w-[96rem]">
         <main className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 shadow-2xl shadow-black/30 md:p-6 lg:p-8">
-          <Header />
-          <ModelSelection
+          <Header
             selectedModel={modelConfiguration.selectedModel}
             onSelectModel={(model) => {
+              if (model === modelConfiguration.selectedModel) return;
               clearGeneratedResult();
               setRawDetectionResult(null);
               setFieldOverrides({});
               setExecutionProvider(null);
               setRecommendedConfidenceThreshold(null);
-              setModelConfiguration((prev) => ({
-                ...prev,
-                selectedModel: model,
-              }));
+              saveModelPreference(model);
+              setModelConfiguration((previous) => ({ ...previous, selectedModel: model }));
             }}
-            availableModels={AVAILABLE_MODELS}
+            textBoxFontSize={modelConfiguration.textBoxFontSize}
+            onChangeTextBoxFontSize={(fontSize) => {
+              saveFontSizePreference(fontSize);
+              setModelConfiguration((previous) => ({ ...previous, textBoxFontSize: fontSize }));
+            }}
+            isProcessing={status.type === "loading"}
+          />
+          <ConfidenceControl
             confidenceThreshold={modelConfiguration.confidenceThreshold}
             recommendedConfidenceThreshold={recommendedConfidenceThreshold}
             onUseRecommendedConfidenceThreshold={handleUseRecommendedConfidenceThreshold}
             onChangeConfidenceThreshold={(threshold) => {
-              setModelConfiguration((prev) => ({
-                ...prev,
-                confidenceThreshold: threshold,
-              }));
+              setModelConfiguration((previous) => ({ ...previous, confidenceThreshold: threshold }));
             }}
-            textBoxFontSize={modelConfiguration.textBoxFontSize}
-            onChangeTextBoxFontSize={(fontSize) =>
-              setModelConfiguration((prev) => ({
-                ...prev,
-                textBoxFontSize: fontSize,
-              }))
-            }
           />
           {executionProvider && (
             <div className="mb-6 flex flex-wrap gap-2">
