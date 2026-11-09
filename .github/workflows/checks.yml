@@ -2,7 +2,7 @@ name: LocalForm checks and protected deployment
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
   pull_request:
     branches: [master]
   workflow_dispatch:
