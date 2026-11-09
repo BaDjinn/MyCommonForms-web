@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-//import * as ort from "onnxruntime-web";
-import * as pdfjsLib from "pdfjs-dist";
 import { detectFormFields, type DetectionResult } from "./lib/formFieldDetection";
 import { applyAcroFields } from "./lib/applyAcroFields";
 import { ensureValidPDF } from "./lib/ensureValidPDF";
@@ -13,8 +11,6 @@ import { ProcessingSteps } from "./components/ProcessingSteps";
 import { Header } from "./components/Header";
 import { StatusMessage, type Status } from "./components/StatusMessage";
 import { type FieldKind } from "./workers/inference.worker";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-//ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/";
 const CANDIDATE_CONFIDENCE_THRESHOLD = 0.05;
 const MIN_RECOMMENDED_THRESHOLD = 0.08;
 const MAX_RECOMMENDED_THRESHOLD = 0.35;

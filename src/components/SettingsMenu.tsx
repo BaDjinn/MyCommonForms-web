@@ -47,7 +47,7 @@ export function SettingsMenu({
     <details ref={menuRef} className="lf-settings">
       <summary className="lf-settings-trigger" aria-label={t("settings.title")} title={t("settings.title")}>
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10.4 2h3.2l.55 2.25 1.53.64 2.02-1.2 2.26 2.26-1.2 2.02.64 1.53L21.65 10v3.2l-2.25.55-.64 1.53 1.2 2.02-2.26 2.26-2.02-1.2-1.53.64L13.6 21.25h-3.2l-.55-2.25-1.53-.64-2.02 1.2-2.26-2.26 2.02-1.2 1.53.64L10.4 2Z" />
+          <path d="M10.4 2h3.2l.55 2.25 1.53.64 2.02-1.2 2.26 2.26-1.2 2.02.64 1.53L21.65 10v3.2l-2.25.55-.64 1.53 1.2 2.02-2.26 2.26-2.02-1.2-1.53.64L13.6 21.25h-3.2l-.55-2.25-1.53-.64-2.02 1.2-2.26-2.26 1.2-2.02-.64-1.53L2.35 13.2V10l2.25-.5.64-1.53-1.2-2.02L6.3 3.69l2.02 1.2 1.53-.64L10.4 2Z" />
           <circle cx="12" cy="11.6" r="3.1" />
         </svg>
       </summary>
