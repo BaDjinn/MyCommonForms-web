@@ -1,0 +1,208 @@
+/* LocalForm appearance presets shared with LocalDiligence, LocalFog and LocalSurface. */
+:root {
+  color-scheme: dark;
+  --lf-bg: #020617;
+  --lf-surface: #0f172a;
+  --lf-panel: #162137;
+  --lf-panel2: #1e293b;
+  --lf-border: #334155;
+  --lf-text: #f1f5f9;
+  --lf-muted: #cbd5e1;
+  --lf-accent: #818cf8;
+  --lf-on-accent: #020617;
+}
+:root[data-theme="monokai"] {
+  --lf-bg: #272822;
+  --lf-surface: #303129;
+  --lf-panel: #303129;
+  --lf-panel2: #383a31;
+  --lf-border: #52564a;
+  --lf-text: #f8f8f2;
+  --lf-muted: #c2c5b6;
+  --lf-accent: #a6e22e;
+  --lf-on-accent: #171a12;
+}
+:root[data-theme="tokyo"] {
+  --lf-bg: #1a1b26;
+  --lf-surface: #222436;
+  --lf-panel: #222436;
+  --lf-panel2: #292d43;
+  --lf-border: #414868;
+  --lf-text: #c0caf5;
+  --lf-muted: #a4afd1;
+  --lf-accent: #7aa2f7;
+  --lf-on-accent: #111522;
+}
+:root[data-theme="nord"] {
+  --lf-bg: #2e3440;
+  --lf-surface: #363d4c;
+  --lf-panel: #363d4c;
+  --lf-panel2: #434c5e;
+  --lf-border: #566476;
+  --lf-text: #eceff4;
+  --lf-muted: #c2cedb;
+  --lf-accent: #88c0d0;
+  --lf-on-accent: #222b35;
+}
+:root[data-theme="frost"] {
+  --lf-bg: #0c1926;
+  --lf-surface: #132439;
+  --lf-panel: #132439;
+  --lf-panel2: #1b3148;
+  --lf-border: #35536a;
+  --lf-text: #e7f4ff;
+  --lf-muted: #a9c5d7;
+  --lf-accent: #80c9ec;
+  --lf-on-accent: #0c1926;
+}
+:root[data-theme] body,
+:root[data-theme] .min-h-screen {
+  background: var(--lf-bg) !important;
+  color: var(--lf-text);
+}
+:root[data-theme] main.rounded-2xl {
+  background: var(--lf-panel) !important;
+  border-color: var(--lf-border) !important;
+}
+:root[data-theme] :is(.bg-white, .bg-gray-50, .bg-sky-50, .bg-emerald-50, .bg-indigo-50) {
+  background-color: var(--lf-surface) !important;
+}
+:root[data-theme] :is(.bg-gray-100, .bg-gray-200) {
+  background-color: var(--lf-panel2) !important;
+}
+:root[data-theme] :is(.text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600, .text-sky-900, .text-emerald-900, .text-slate-50) {
+  color: var(--lf-text) !important;
+}
+:root[data-theme] :is(.text-gray-500, .text-slate-400, .text-indigo-700, .text-sky-700) {
+  color: var(--lf-muted) !important;
+}
+:root[data-theme] :is(.border-gray-200, .border-gray-300, .border-slate-800, .border-sky-300) {
+  border-color: var(--lf-border) !important;
+}
+:root[data-theme] :is(input[type="text"], input[type="number"], select) {
+  border-color: var(--lf-border) !important;
+  background: var(--lf-bg) !important;
+  color: var(--lf-text) !important;
+  color-scheme: dark;
+}
+:root[data-theme] :is(input[type="checkbox"], input[type="range"]) {
+  accent-color: var(--lf-accent);
+}
+:root[data-theme]:not([data-theme="original"]) :is(.bg-sky-500, .bg-emerald-500, .bg-indigo-600, .bg-cyan-800, .bg-blue-500) {
+  background-color: var(--lf-accent) !important;
+  color: var(--lf-on-accent) !important;
+}
+:root[data-theme] :is(button, input, select, summary, a):focus-visible {
+  outline: 2px solid var(--lf-accent);
+  outline-offset: 2px;
+}
+/* Settings trigger mirrors the compact gear control from LocalDiligence. */
+.lf-settings {
+  position: relative;
+  flex: 0 0 auto;
+  z-index: 20;
+}
+.lf-settings-trigger {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--lf-border);
+  border-radius: 8px;
+  background: var(--lf-surface);
+  color: var(--lf-text);
+  list-style: none;
+  cursor: pointer;
+}
+.lf-settings-trigger::-webkit-details-marker { display: none; }
+.lf-settings-trigger:hover,
+.lf-settings[open] .lf-settings-trigger {
+  border-color: var(--lf-accent);
+  color: var(--lf-accent);
+}
+.lf-settings-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(330px, calc(100vw - 36px));
+  max-height: min(78vh, 760px);
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--lf-border);
+  border-radius: 12px;
+  background: var(--lf-surface);
+  color: var(--lf-text);
+  box-shadow: 0 18px 50px #0008;
+}
+.lf-settings-heading {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 750;
+}
+.lf-settings-group {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--lf-border);
+}
+.lf-settings-group legend {
+  padding: 0;
+  font-size: .84rem;
+  font-weight: 700;
+  color: var(--lf-text);
+}
+.lf-settings-group label {
+  display: block;
+  color: var(--lf-muted);
+  font-size: .78rem;
+}
+.lf-settings-group select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px;
+  border: 1px solid var(--lf-border);
+  border-radius: 6px;
+  background: var(--lf-bg);
+  color: var(--lf-text);
+}
+.lf-theme-options { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.lf-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.lf-theme-option:hover { background: var(--lf-panel2); }
+.lf-theme-option[aria-pressed="true"] { border-color: var(--lf-accent); background: var(--lf-panel2); }
+.lf-theme-swatches { display: flex; flex: 0 0 auto; gap: 2px; }
+.lf-theme-swatches i {
+  width: 14px;
+  height: 23px;
+  border: 1px solid #ffffff3d;
+  border-radius: 3px;
+}
+.lf-theme-check { margin-left: auto; color: var(--lf-accent); font-weight: 700; }
+.lf-settings-note { margin: 0; font-size: .75rem; line-height: 1.4; color: var(--lf-muted); }
+.lf-settings-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--lf-border);
+  padding-top: 12px;
+}
+.lf-settings-logout {
+  color: var(--lf-accent);
+  font-weight: 600;
+  font-size: .82rem;
+}

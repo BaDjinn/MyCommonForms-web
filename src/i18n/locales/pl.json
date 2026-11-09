@@ -1,18 +1,4 @@
 {
-  "header": {
-    "title": "Wykrywanie pól formularzy PDF w przeglądarce",
-    "subtitle": "Automatycznie wykrywaj pola formularzy w plikach PDF za pomocą CommonForms wykorzystując ONNX Runtime Web",
-    "privacyFriendly": "Przyjazny dla prywatności",
-    "runsInBrowser": "Działa w przeglądarce",
-    "aboutCommonForms": "O CommonForms",
-    "aboutCommonFormsDescription": "<0>CommonForms</0> autorstwa <1>Joe Barrow</1> wykorzystuje modele FFDNet wytrenowane na obszernym zbiorze danych formularzy do automatycznego wykrywania pól tekstowych, pól wyboru i pól podpisu w dokumentach PDF.",
-    "howItWorks": "Jak to działa",
-    "howItWorksBullet1": "Wykrywanie oparte na YOLO z <0>ONNX Runtime</0>",
-    "howItWorksBullet2": "Wykrywa i dodaje odpowiednie pola acrofields PDF",
-    "howItWorksBullet3": "Działa całkowicie w przeglądarce",
-    "howItWorksBullet4": "Wypełnij lub pobierz wynikowy PDF",
-    "arxivPaper": "Artykuł arXiv"
-  },
   "modelSelection": {
     "selectModel": "Wybierz model:",
     "confidenceThreshold": "Próg pewności:",
@@ -63,5 +49,21 @@
   "warnings": {
     "pdfHasAcrofields": "Ten PDF zawiera już {{count}} pole do wypełnienia. Jeśli będziesz kontynuować, zostanie ono zastąpione nowo wykrytymi polami.",
     "pdfHasAcrofields_other": "Ten PDF zawiera już {{count}} pól do wypełnienia. Jeśli będziesz kontynuować, zostaną one zastąpione nowo wykrytymi polami."
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "appearance": "Wygląd",
+    "language": "Język",
+    "processing": "Przetwarzanie",
+    "model": "Model domyślny",
+    "fast": "Szybki",
+    "accurate": "Dokładniejszy",
+    "modelWarning": "Zmiana modelu wymaga ponownego wykrywania.",
+    "pdf": "PDF",
+    "fontSize": "Domyślny rozmiar tekstu",
+    "about": "Informacje",
+    "logout": "Wyloguj",
+    "useRecommended": "Użyj {{value}}",
+    "recommended": "Zalecany próg: {{value}}"
   }
 }
