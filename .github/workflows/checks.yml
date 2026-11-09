@@ -1,30 +1,87 @@
-name: Checks
+name: LocalForm checks and protected deployment
 
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  tests:
+  verify:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 25
     steps:
-      - name: Checkout code
+      - name: Check out exact commit
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      - name: Set up Node and npm cache
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Types, unit tests, production build and PWA assets
+        run: npm run check
+      - name: Preserve the verified production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: localform-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Check types
-        run: npm run test:types
+  deploy:
+    needs: verify
+    if: >-
+      github.repository == 'BaDjinn/MyCommonForms-web' &&
+      github.ref == 'refs/heads/master' &&
+      github.event_name != 'pull_request' &&
+      vars.NETLIFY_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: localform-netlify-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out Edge Functions and config
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download the already-verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: localform-dist
+          path: dist
+      - name: Validate site, secrets and latest commit
+        shell: bash
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NETLIFY_AUTH_TOKEN" || -z "$NETLIFY_SITE_ID" ]]; then
+            echo "::error::Netlify secret/site ID missing; refusing deployment."
+            exit 1
+          fi
+          live_sha="$(git ls-remote https://github.com/BaDjinn/MyCommonForms-web.git refs/heads/master | cut -f1)"
+          if [[ -z "$live_sha" || "$live_sha" != "$GITHUB_SHA" ]]; then
+            echo "::error::Obsolete commit or unavailable production branch; refusing deployment."
+            exit 1
+          fi
+          test -f dist/manifest.webmanifest
+          test -f netlify/edge-functions/github-auth.js
+      - name: Install pinned Netlify CLI outside the app
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/localform-netlify-cli" --no-save --no-package-lock --no-audit --no-fund netlify-cli@27.13.0
+      - name: Deploy verified dist and OAuth Edge Function to existing site
+        shell: bash
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          "$RUNNER_TEMP/localform-netlify-cli/node_modules/.bin/netlify" deploy --no-build --prod --dir=dist --site="$NETLIFY_SITE_ID"

@@ -1,5 +1,5 @@
 {
-  "name": "commonforms-in-browser",
+  "name": "localform",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -8,7 +8,10 @@
     "preview": "vite preview",
     "test:types": "tsc --noEmit",
     "format:check": "prettier --check .",
-    "format:fix": "prettier --write ."
+    "format:fix": "prettier --write .",
+    "check": "npm run test:types && npm run test:unit && npm run build && npm run verify:pwa",
+    "test:unit": "node --test tests/*.test.mjs",
+    "verify:pwa": "node scripts/verify-pwa.mjs"
   },
   "dependencies": {
     "@simplepdf/react-embed-pdf": "^1.9.0",

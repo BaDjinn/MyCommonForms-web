@@ -120,7 +120,7 @@ function getEnv(name) {
 
 async function startGithubLogin(request, config) {
 	const url = new URL(request.url);
-	const next = safeNext(url.searchParams.get("next") || "/");
+	const next = safeNext(url.searchParams.get("next") || "/", url.origin);
 
 	const callbackUrl = `${url.origin}${CALLBACK_PATH}`;
 
@@ -212,7 +212,7 @@ async function handleGithubCallback(request, config) {
 
 	const sessionToken = await signPayload(sessionPayload, config.authSecret);
 
-	const next = safeNext(statePayload.n || "/");
+	const next = safeNext(statePayload.n || "/", url.origin);
 
 	const headers = new Headers();
 
@@ -367,7 +367,7 @@ async function readSession(request, authSecret) {
 }
 
 function redirectToLogin(url) {
-	const next = safeNext(`${url.pathname}${url.search}`);
+	const next = safeNext(`${url.pathname}${url.search}`, url.origin);
 	const loginUrl = new URL(LOGIN_PATH, url.origin);
 
 	loginUrl.searchParams.set("next", next);
@@ -384,7 +384,7 @@ function redirectToLogin(url) {
 }
 
 function loginPage(url) {
-	const next = safeNext(url.searchParams.get("next") || "/");
+	const next = safeNext(url.searchParams.get("next") || "/", url.origin);
 	const startUrl = new URL(LOGIN_PATH, url.origin);
 
 	startUrl.searchParams.set("start", "github");
@@ -777,16 +777,19 @@ function clearCookie(request, name) {
 	});
 }
 
-function safeNext(value) {
+export function safeNext(value, origin) {
 	const raw = String(value || "/").trim();
-
-	if (!raw.startsWith("/")) return "/";
-	if (raw.startsWith("//")) return "/";
-	if (raw.startsWith(LOGIN_PATH)) return "/";
-	if (raw.startsWith(CALLBACK_PATH)) return "/";
-	if (raw.startsWith(LOGOUT_PATH)) return "/";
-
-	return raw;
+	if (!raw.startsWith("/") || raw.startsWith("//") || /[\\\\\x00-\x1f\x7f]/.test(raw)) return "/";
+	let target;
+	try {
+		target = new URL(raw, origin);
+	} catch {
+		return "/";
+	}
+	if (target.origin !== origin) return "/";
+	const path = target.pathname;
+	if ([LOGIN_PATH, CALLBACK_PATH, LOGOUT_PATH].some((blocked) => path.startsWith(blocked))) return "/";
+	return `${target.pathname}${target.search}${target.hash}`;
 }
 
 function randomToken() {
