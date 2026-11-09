@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LocalForm">
+  <rect width="512" height="512" fill="#020617"/>
+  <rect x="51" y="51" width="410" height="410" rx="97" fill="#312e81"/>
+  <rect x="123" y="87" width="271" height="343" rx="28" fill="#e2e8f0"/>
+  <path d="M317 87V165H394Z" fill="#94a3b8"/>
+  <rect x="164" y="154" width="138" height="23" rx="6" fill="#818cf8"/>
+  <g stroke="#818cf8" stroke-width="7" fill="none">
+    <rect x="164" y="236" width="52" height="52" rx="7"/>
+    <rect x="164" y="308" width="52" height="52" rx="7"/>
+  </g>
+  <g fill="#94a3b8">
+    <rect x="246" y="249" width="108" height="13" rx="6"/>
+    <rect x="246" y="321" width="108" height="13" rx="6"/>
+  </g>
+  <g stroke="#2dd4bf" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="m177 259 14 13 26-29"/>
+    <path d="m177 331 14 13 26-29"/>
+  </g>
+</svg>
